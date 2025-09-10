@@ -13,7 +13,12 @@ return new class extends Migration
     {
         Schema::create('patients', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+            $table->string('nome_completo');
+            $table->date('data_nascimento');
+            $table->string('cpf')->unique(); // unique() garante que não haverá CPFs duplicados
+            $table->string('telefone')->nullable(); // nullable() significa que o campo é opcional
+            $table->text('endereco')->nullable();
+            $table->timestamps(); // Cria as colunas created_at e updated_at
         });
     }
 
