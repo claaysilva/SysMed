@@ -19,8 +19,18 @@ Route::apiResource('/appointments', AppointmentController::class)->middleware('a
 
 use App\Http\Controllers\Api\MedicalRecordEntryController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Api\DashboardController;
 
 Route::middleware('auth:sanctum')->group(function () {
+    // Rotas do dashboard
+    Route::get('/dashboard/statistics', [DashboardController::class, 'statistics']);
+    Route::get('/dashboard/recent-activity', [DashboardController::class, 'recentActivity']);
+
+    // Rotas avançadas de agendamento
+    Route::get('/appointments/available-slots', [AppointmentController::class, 'availableSlots']);
+    Route::get('/appointments/doctor/{doctorId}/schedule', [AppointmentController::class, 'doctorSchedule']);
+    Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus']);
+
     Route::get('/patients/{patientId}/record-entries', [MedicalRecordEntryController::class, 'indexForPatient']);
     Route::post('/record-entries', [MedicalRecordEntryController::class, 'store']);
 
