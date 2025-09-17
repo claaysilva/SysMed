@@ -4,6 +4,8 @@ import MainLayout from "./layouts/MainLayout.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import PatientsPage from "./pages/PatientsPage.tsx";
+import SchedulePage from "./pages/SchedulePage.tsx";
+import PatientDetailPage from "./pages/PatientDetailPage.tsx";
 
 function App() {
     return (
@@ -23,6 +25,11 @@ function App() {
                 <Route index element={<DashboardPage />} />
 
                 <Route path="/patients" element={<PatientsPage />} />
+                <Route
+                    path="/patients/:patientId"
+                    element={<PatientDetailPage />}
+                />
+                <Route path="/schedule" element={<SchedulePage />} />
             </Route>
         </Routes>
     );
