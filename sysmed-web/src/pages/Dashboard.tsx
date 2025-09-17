@@ -21,7 +21,7 @@ interface AgendamentoRecente {
     tipo: string;
 }
 
-const DashboardPage: React.FC = () => {
+const Dashboard: React.FC = () => {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [agendamentosRecentes, setAgendamentosRecentes] = useState<
         AgendamentoRecente[]
@@ -529,4 +529,4 @@ const DashboardPage: React.FC = () => {
     );
 };
 
-export default DashboardPage;
+export default Dashboard;

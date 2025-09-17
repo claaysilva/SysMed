@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StorePatientRequest;
+use App\Http\Requests\UpdatePatientRequest;
 use App\Models\Patient; // Importe o Model
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,19 +18,9 @@ class PatientController extends Controller
     }
 
     // Criar um novo paciente
-    public function store(Request $request)
+    public function store(StorePatientRequest $request)
     {
-        $user = Auth::user();
-        if ($user->role !== 'admin') {
-            return response()->json(['message' => 'Apenas admin pode cadastrar pacientes.'], 403);
-        }
-        $validatedData = $request->validate([
-            'nome_completo' => 'required|string|max:255',
-            'data_nascimento' => 'required|date',
-            'cpf' => 'required|string|unique:patients|max:14',
-            'telefone' => 'nullable|string|max:20',
-            'endereco' => 'nullable|string',
-        ]);
+        $validatedData = $request->validated();
 
         $patient = Patient::create($validatedData);
         return response()->json($patient, 201); // 201 = Created
@@ -41,19 +33,9 @@ class PatientController extends Controller
     }
 
     // Atualizar um paciente
-    public function update(Request $request, Patient $patient)
+    public function update(UpdatePatientRequest $request, Patient $patient)
     {
-        $user = Auth::user();
-        if ($user->role !== 'admin') {
-            return response()->json(['message' => 'Apenas admin pode editar pacientes.'], 403);
-        }
-        $validatedData = $request->validate([
-            'nome_completo' => 'sometimes|required|string|max:255',
-            'data_nascimento' => 'sometimes|required|date',
-            'cpf' => 'sometimes|required|string|max:14|unique:patients,cpf,' . $patient->id,
-            'telefone' => 'nullable|string|max:20',
-            'endereco' => 'nullable|string',
-        ]);
+        $validatedData = $request->validated();
 
         $patient->update($validatedData);
         return response()->json($patient, 200); // 200 = OK
