@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Patient; // Importe o Model
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class PatientController extends Controller
 {
@@ -17,6 +18,10 @@ class PatientController extends Controller
     // Criar um novo paciente
     public function store(Request $request)
     {
+        $user = Auth::user();
+        if ($user->role !== 'admin') {
+            return response()->json(['message' => 'Apenas admin pode cadastrar pacientes.'], 403);
+        }
         $validatedData = $request->validate([
             'nome_completo' => 'required|string|max:255',
             'data_nascimento' => 'required|date',
@@ -38,6 +43,10 @@ class PatientController extends Controller
     // Atualizar um paciente
     public function update(Request $request, Patient $patient)
     {
+        $user = Auth::user();
+        if ($user->role !== 'admin') {
+            return response()->json(['message' => 'Apenas admin pode editar pacientes.'], 403);
+        }
         $validatedData = $request->validate([
             'nome_completo' => 'sometimes|required|string|max:255',
             'data_nascimento' => 'sometimes|required|date',
@@ -53,6 +62,10 @@ class PatientController extends Controller
     // Deletar um paciente
     public function destroy(Patient $patient)
     {
+        $user = Auth::user();
+        if ($user->role !== 'admin') {
+            return response()->json(['message' => 'Apenas admin pode deletar pacientes.'], 403);
+        }
         $patient->delete();
         return response()->json(null, 204); // 204 = No Content
     }

@@ -26,6 +26,11 @@ class MedicalRecordEntryController extends Controller
       'appointment_id' => 'nullable|exists:appointments,id',
     ]);
 
+    $user = Auth::user();
+    if (!in_array($user->role, ['medico', 'admin'])) {
+      return response()->json(['message' => 'Apenas médicos ou admin podem registrar entradas no prontuário.'], 403);
+    }
+
     $entry = MedicalRecordEntry::create([
       'patient_id' => $validatedData['patient_id'],
       'conteudo' => $validatedData['conteudo'],
