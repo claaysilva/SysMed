@@ -4,8 +4,11 @@ import MainLayout from "./layouts/MainLayout.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import PatientsPage from "./pages/PatientsPage.tsx";
-import SchedulePage from "./pages/SchedulePage.tsx";
+import AgendaPage from "./pages/AgendaPage.tsx";
 import PatientDetailPage from "./pages/PatientDetailPage.tsx";
+import MedicalRecordsPage from "./pages/MedicalRecordsPage.tsx";
+import MedicalRecordDetailPage from "./pages/MedicalRecordDetailPage.tsx";
+import MedicalRecordFormPage from "./pages/MedicalRecordFormPage.tsx";
 
 function App() {
     return (
@@ -29,7 +32,23 @@ function App() {
                     path="/patients/:patientId"
                     element={<PatientDetailPage />}
                 />
-                <Route path="/schedule" element={<SchedulePage />} />
+                <Route path="/schedule" element={<AgendaPage />} />
+                <Route
+                    path="/medical-records"
+                    element={<MedicalRecordsPage />}
+                />
+                <Route
+                    path="/medical-records/new"
+                    element={<MedicalRecordFormPage />}
+                />
+                <Route
+                    path="/medical-records/:recordId"
+                    element={<MedicalRecordDetailPage />}
+                />
+                <Route
+                    path="/medical-records/:recordId/edit"
+                    element={<MedicalRecordFormPage />}
+                />
             </Route>
         </Routes>
     );

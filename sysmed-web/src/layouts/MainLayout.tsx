@@ -48,6 +48,12 @@ const MainLayout: React.FC = () => {
             icon: "📅",
             description: "Agendamentos e consultas",
         },
+        {
+            path: "/medical-records",
+            label: "Prontuários",
+            icon: "📋",
+            description: "Prontuários médicos eletrônicos",
+        },
     ];
 
     const isActive = (path: string) => {
