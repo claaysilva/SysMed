@@ -18,6 +18,7 @@ Route::apiResource('/patients', PatientController::class)->middleware('auth:sanc
 Route::apiResource('/appointments', AppointmentController::class)->middleware('auth:sanctum');
 
 use App\Http\Controllers\Api\MedicalRecordEntryController;
+use App\Http\Controllers\ReportController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/patients/{patientId}/record-entries', [MedicalRecordEntryController::class, 'indexForPatient']);
@@ -28,4 +29,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/medical-records/{medicalRecord}/sign', [MedicalRecordController::class, 'sign']);
     Route::get('/medical-records-statistics', [MedicalRecordController::class, 'statistics']);
     Route::get('/patients/{patient}/medical-records', [MedicalRecordController::class, 'byPatient']);
+
+    // Rotas do sistema de relatórios
+    Route::apiResource('/reports', ReportController::class);
+    Route::get('/reports/{report}/download', [ReportController::class, 'download']);
+    Route::get('/report-templates', [ReportController::class, 'templates']);
+    Route::get('/reports-statistics', [ReportController::class, 'statistics']);
+    Route::post('/reports/export', [ReportController::class, 'export']);
 });

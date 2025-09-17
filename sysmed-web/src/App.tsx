@@ -9,6 +9,7 @@ import PatientDetailPage from "./pages/PatientDetailPage.tsx";
 import MedicalRecordsPage from "./pages/MedicalRecordsPage.tsx";
 import MedicalRecordDetailPage from "./pages/MedicalRecordDetailPage.tsx";
 import MedicalRecordFormPage from "./pages/MedicalRecordFormPage.tsx";
+import ReportsPage from "./pages/ReportsPage.tsx";
 
 function App() {
     return (
@@ -49,6 +50,7 @@ function App() {
                     path="/medical-records/:recordId/edit"
                     element={<MedicalRecordFormPage />}
                 />
+                <Route path="/reports" element={<ReportsPage />} />
             </Route>
         </Routes>
     );

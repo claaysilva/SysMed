@@ -54,6 +54,12 @@ const MainLayout: React.FC = () => {
             icon: "📋",
             description: "Prontuários médicos eletrônicos",
         },
+        {
+            path: "/reports",
+            label: "Relatórios",
+            icon: "📈",
+            description: "Relatórios médicos, financeiros e estatísticos",
+        },
     ];
 
     const isActive = (path: string) => {
