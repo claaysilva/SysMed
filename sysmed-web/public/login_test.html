@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Login SysMed - Teste</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 600px;
+                margin: 50px auto;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            .container {
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #1976d2;
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .user-option {
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                padding: 15px;
+                margin: 10px 0;
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+            .user-option:hover {
+                background: #e9ecef;
+                border-color: #1976d2;
+            }
+            .user-option.selected {
+                background: #e3f2fd;
+                border-color: #1976d2;
+            }
+            button {
+                width: 100%;
+                padding: 12px;
+                background: #1976d2;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 16px;
+                cursor: pointer;
+                margin-top: 20px;
+            }
+            button:hover {
+                background: #1565c0;
+            }
+            button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+            #resultado {
+                margin-top: 20px;
+                padding: 15px;
+                border-radius: 6px;
+                display: none;
+            }
+            .success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            .info {
+                background: #d1ecf1;
+                color: #0c5460;
+                border: 1px solid #bee5eb;
+            }
+            pre {
+                background: #f8f9fa;
+                padding: 10px;
+                border-radius: 4px;
+                overflow-x: auto;
+                font-size: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔐 Login SysMed - Teste</h1>
+
+            <p><strong>Escolha um usuário para fazer login:</strong></p>
+
+            <div
+                class="user-option"
+                onclick="selectUser('admin@sysmed.com', 'Admin Sistema', 'admin')"
+            >
+                <h3>👨‍💼 Admin Sistema</h3>
+                <p><strong>Email:</strong> admin@sysmed.com</p>
+                <p><strong>Função:</strong> Administrador</p>
+            </div>
+
+            <div
+                class="user-option"
+                onclick="selectUser('medico@sysmed.com', 'Dr. João Silva', 'medico')"
+            >
+                <h3>👨‍⚕️ Dr. João Silva</h3>
+                <p><strong>Email:</strong> medico@sysmed.com</p>
+                <p><strong>Função:</strong> Médico</p>
+            </div>
+
+            <div
+                class="user-option"
+                onclick="selectUser('medico2@sysmed.com', 'Dra. Maria Santos', 'medico')"
+            >
+                <h3>👩‍⚕️ Dra. Maria Santos</h3>
+                <p><strong>Email:</strong> medico2@sysmed.com</p>
+                <p><strong>Função:</strong> Médica</p>
+            </div>
+
+            <button id="loginBtn" onclick="fazerLogin()" disabled>
+                Fazer Login
+            </button>
+
+            <div id="resultado"></div>
+        </div>
+
+        <script>
+            let selectedUser = null;
+
+            function selectUser(email, name, role) {
+                // Remover seleção anterior
+                document.querySelectorAll(".user-option").forEach((el) => {
+                    el.classList.remove("selected");
+                });
+
+                // Selecionar novo usuário
+                event.target.closest(".user-option").classList.add("selected");
+
+                selectedUser = { email, name, role };
+                document.getElementById("loginBtn").disabled = false;
+
+                hideResult();
+            }
+
+            async function fazerLogin() {
+                if (!selectedUser) {
+                    showResult("Selecione um usuário primeiro!", "error");
+                    return;
+                }
+
+                showResult("🔄 Fazendo login...", "info");
+
+                try {
+                    // Simular login - na prática você faria uma chamada para /api/login
+                    // Por enquanto, vamos gerar um token usando o endpoint de teste
+
+                    showResult("🔑 Gerando token de autenticação...", "info");
+
+                    // Gerar um token usando o script PHP existente
+                    const response = await fetch(
+                        "http://localhost:8000/api/test",
+                        {
+                            method: "GET",
+                            headers: {
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error("Servidor não está respondendo");
+                    }
+
+                    // Tokens válidos gerados pelo servidor
+                    const tokens = {
+                        "admin@sysmed.com":
+                            "37|LzaxVrFoWlKaliKlwwqrjPgvydALdQFAX2xBR25n74b9ffc0",
+                        "medico@sysmed.com":
+                            "38|SW1oQVtc0JumIGVSoNjrZj2N84UiN6vanlQ6adit549b6473",
+                        "medico2@sysmed.com":
+                            "39|wfD4lz8hsk5CSMGeaWgbA1ROIlFbKTNwoTaA6VIE94d0a961",
+                    };
+                    const token = tokens[selectedUser.email];
+
+                    // Salvar no localStorage
+                    localStorage.setItem("authToken", token);
+                    localStorage.setItem("userName", selectedUser.name);
+                    localStorage.setItem("userRole", selectedUser.role);
+                    localStorage.setItem("userEmail", selectedUser.email);
+                    localStorage.setItem(
+                        "user",
+                        JSON.stringify({
+                            name: selectedUser.name,
+                            email: selectedUser.email,
+                            role: selectedUser.role,
+                        })
+                    );
+
+                    showResult(
+                        `
+                    ✅ <strong>Login realizado com sucesso!</strong><br><br>
+                    <strong>Usuário:</strong> ${selectedUser.name}<br>
+                    <strong>Email:</strong> ${selectedUser.email}<br>
+                    <strong>Função:</strong> ${selectedUser.role}<br>
+                    <strong>Token:</strong> ${token.substring(0, 20)}...<br><br>
+                    
+                    <button onclick="testarDashboard()" style="margin: 5px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        📊 Testar Dashboard
+                    </button>
+                    
+                    <button onclick="abrirDashboard()" style="margin: 5px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🚀 Ir para Dashboard
+                    </button>
+                `,
+                        "success"
+                    );
+                } catch (error) {
+                    showResult(`❌ Erro no login: ${error.message}`, "error");
+                }
+            }
+
+            async function testarDashboard() {
+                const token = localStorage.getItem("authToken");
+
+                showResult("📊 Testando acesso ao dashboard...", "info");
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/dashboard/statistics",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        showResult(
+                            `
+                        ✅ <strong>Dashboard funcionando!</strong><br><br>
+                        📈 <strong>Total de Pacientes:</strong> ${
+                            data.data.overview.totalPatients
+                        }<br>
+                        📅 <strong>Consultas Hoje:</strong> ${
+                            data.data.overview.appointmentsToday
+                        }<br>
+                        📊 <strong>Consultas Esta Semana:</strong> ${
+                            data.data.overview.appointmentsThisWeek
+                        }<br><br>
+                        
+                        <button onclick="abrirDashboard()" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🚀 Ir para Dashboard Principal
+                        </button>
+                        
+                        <details style="margin-top: 15px;">
+                            <summary style="cursor: pointer; color: #007bff;">Ver dados completos</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `,
+                            "success"
+                        );
+                    } else {
+                        showResult(
+                            `❌ Erro ao acessar dashboard: ${response.status} - ${response.statusText}`,
+                            "error"
+                        );
+                    }
+                } catch (error) {
+                    showResult(`❌ Erro de conexão: ${error.message}`, "error");
+                }
+            }
+
+            function abrirDashboard() {
+                window.open("http://localhost:5173", "_blank");
+            }
+
+            function showResult(message, type) {
+                const resultado = document.getElementById("resultado");
+                resultado.innerHTML = message;
+                resultado.className = type;
+                resultado.style.display = "block";
+            }
+
+            function hideResult() {
+                document.getElementById("resultado").style.display = "none";
+            }
+
+            // Verificar se já existe um usuário logado
+            window.onload = function () {
+                const existingToken = localStorage.getItem("authToken");
+                const existingUser = localStorage.getItem("userName");
+
+                if (existingToken && existingUser) {
+                    showResult(
+                        `
+                    ℹ️ <strong>Usuário já logado:</strong> ${existingUser}<br>
+                    <strong>Token:</strong> ${existingToken.substring(
+                        0,
+                        20
+                    )}...<br><br>
+                    
+                    <button onclick="testarDashboard()" style="margin: 5px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        📊 Testar Dashboard
+                    </button>
+                    
+                    <button onclick="abrirDashboard()" style="margin: 5px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🚀 Ir para Dashboard
+                    </button>
+                    
+                    <button onclick="logout()" style="margin: 5px; padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🚪 Logout
+                    </button>
+                `,
+                        "info"
+                    );
+                }
+            };
+
+            function logout() {
+                localStorage.removeItem("authToken");
+                localStorage.removeItem("userName");
+                localStorage.removeItem("userRole");
+                localStorage.removeItem("userEmail");
+                localStorage.removeItem("user");
+
+                hideResult();
+                document.getElementById("loginBtn").disabled = true;
+                document.querySelectorAll(".user-option").forEach((el) => {
+                    el.classList.remove("selected");
+                });
+                selectedUser = null;
+
+                showResult("✅ Logout realizado com sucesso!", "success");
+            }
+        </script>
+    </body>
+</html>

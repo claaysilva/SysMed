@@ -1,76 +1,138 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>Debug SysMed API</title>
-</head>
-<body>
-    <h1>Debug SysMed API</h1>
-    <div id="results"></div>
-    
-    <script>
-        const resultsDiv = document.getElementById('results');
-        
-        function log(message) {
-            console.log(message);
-            resultsDiv.innerHTML += '<p>' + JSON.stringify(message) + '</p>';
-        }
-        
-        async function testAPI() {
-            // Verificar token
-            const token = localStorage.getItem('authToken');
-            log('Token do localStorage: ' + (token ? 'Existe' : 'Não existe'));
-            
-            if (!token) {
-                log('Tentando fazer login primeiro...');
-                try {
-                    const loginResponse = await fetch('http://localhost:8000/api/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            email: 'admin@sysmed.com',
-                            password: 'admin123'
-                        })
-                    });
-                    
-                    const loginData = await loginResponse.json();
-                    log('Resposta do login: ' + JSON.stringify(loginData));
-                    
-                    if (loginData.success && loginData.data.token) {
-                        localStorage.setItem('authToken', loginData.data.token);
-                        log('Token salvo: ' + loginData.data.token);
-                    }
-                } catch (err) {
-                    log('Erro no login: ' + err.message);
-                }
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Debug API - Chrome</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
             }
-            
-            // Testar appointments
-            const currentToken = localStorage.getItem('authToken');
-            if (currentToken) {
-                try {
-                    log('Testando /api/appointments...');
-                    const response = await fetch('http://localhost:8000/api/appointments', {
-                        headers: {
-                            'Authorization': 'Bearer ' + currentToken,
-                            'Content-Type': 'application/json',
+            button {
+                padding: 10px 20px;
+                margin: 10px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #0056b3;
+            }
+            #resultado {
+                margin-top: 20px;
+                padding: 15px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background: #f9f9f9;
+            }
+            .error {
+                color: red;
+            }
+            .success {
+                color: green;
+            }
+            pre {
+                background: #f4f4f4;
+                padding: 10px;
+                border-radius: 3px;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🔧 Debug API - Chrome</h1>
+
+        <h3>Status da Conexão:</h3>
+        <button onclick="testarConexaoBasica()">
+            1. Testar Conexão Básica
+        </button>
+        <button onclick="configurarToken()">2. Configurar Token</button>
+        <button onclick="testarDashboard()">3. Testar Dashboard</button>
+        <button onclick="testarPacientes()">4. Testar Pacientes</button>
+
+        <div id="resultado">
+            Clique em um dos botões para começar o teste...
+        </div>
+
+        <script>
+            const resultsDiv = document.getElementById("results");
+
+            function log(message) {
+                console.log(message);
+                resultsDiv.innerHTML +=
+                    "<p>" + JSON.stringify(message) + "</p>";
+            }
+
+            async function testAPI() {
+                // Verificar token
+                const token = localStorage.getItem("authToken");
+                log(
+                    "Token do localStorage: " +
+                        (token ? "Existe" : "Não existe")
+                );
+
+                if (!token) {
+                    log("Tentando fazer login primeiro...");
+                    try {
+                        const loginResponse = await fetch(
+                            "http://localhost:8000/api/login",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    email: "admin@sysmed.com",
+                                    password: "admin123",
+                                }),
+                            }
+                        );
+
+                        const loginData = await loginResponse.json();
+                        log("Resposta do login: " + JSON.stringify(loginData));
+
+                        if (loginData.success && loginData.data.token) {
+                            localStorage.setItem(
+                                "authToken",
+                                loginData.data.token
+                            );
+                            log("Token salvo: " + loginData.data.token);
                         }
-                    });
-                    
-                    log('Status da resposta: ' + response.status);
-                    
-                    const data = await response.json();
-                    log('Dados recebidos: ' + JSON.stringify(data));
-                    
-                } catch (err) {
-                    log('Erro na requisição: ' + err.message);
+                    } catch (err) {
+                        log("Erro no login: " + err.message);
+                    }
+                }
+
+                // Testar appointments
+                const currentToken = localStorage.getItem("authToken");
+                if (currentToken) {
+                    try {
+                        log("Testando /api/appointments...");
+                        const response = await fetch(
+                            "http://localhost:8000/api/appointments",
+                            {
+                                headers: {
+                                    Authorization: "Bearer " + currentToken,
+                                    "Content-Type": "application/json",
+                                },
+                            }
+                        );
+
+                        log("Status da resposta: " + response.status);
+
+                        const data = await response.json();
+                        log("Dados recebidos: " + JSON.stringify(data));
+                    } catch (err) {
+                        log("Erro na requisição: " + err.message);
+                    }
                 }
             }
-        }
-        
-        // Executar teste ao carregar a página
-        testAPI();
-    </script>
-</body>
+
+            // Executar teste ao carregar a página
+            testAPI();
+        </script>
+    </body>
 </html>

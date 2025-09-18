@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Debug API - Chrome</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }
+            button {
+                padding: 10px 20px;
+                margin: 10px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #0056b3;
+            }
+            #resultado {
+                margin-top: 20px;
+                padding: 15px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background: #f9f9f9;
+            }
+            .error {
+                color: red;
+            }
+            .success {
+                color: green;
+            }
+            pre {
+                background: #f4f4f4;
+                padding: 10px;
+                border-radius: 3px;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🔧 Debug API - Chrome</h1>
+
+        <h3>Status da Conexão:</h3>
+        <button onclick="testarConexaoBasica()">
+            1. Testar Conexão Básica
+        </button>
+        <button onclick="configurarToken()">2. Configurar Token</button>
+        <button onclick="testarDashboard()">3. Testar Dashboard</button>
+        <button onclick="testarPacientes()">4. Testar Pacientes</button>
+
+        <div id="resultado">
+            Clique em um dos botões para começar o teste...
+        </div>
+
+        <script>
+            function log(message, type = "info") {
+                const resultado = document.getElementById("resultado");
+                const timestamp = new Date().toLocaleTimeString();
+                const className =
+                    type === "error"
+                        ? "error"
+                        : type === "success"
+                        ? "success"
+                        : "";
+                resultado.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+                console.log(`[${timestamp}] ${message}`);
+            }
+
+            function clearLog() {
+                document.getElementById("resultado").innerHTML = "";
+            }
+
+            async function testarConexaoBasica() {
+                clearLog();
+                log("🌐 Testando conexão básica...");
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/test",
+                        {
+                            method: "GET",
+                            headers: {
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    log(
+                        `Status: ${response.status}`,
+                        response.ok ? "success" : "error"
+                    );
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        log("✅ Conexão básica funcionando!", "success");
+                        log(`Dados: ${JSON.stringify(data, null, 2)}`);
+                    } else {
+                        log(
+                            `❌ Erro HTTP: ${response.status} - ${response.statusText}`,
+                            "error"
+                        );
+                    }
+                } catch (error) {
+                    log(`❌ Erro de conexão: ${error.message}`, "error");
+                    log(
+                        "💡 Verifique se o servidor Laravel está rodando na porta 8000"
+                    );
+                }
+            }
+
+            function configurarToken() {
+                clearLog();
+                log("🔑 Configurando token...");
+
+                const token =
+                    "32|BOrxNMzGNGeRiBeYOr8BqGbatakwqSvPgUdDMOWl7127beda";
+                localStorage.setItem("authToken", token);
+                localStorage.setItem("userName", "Admin Sistema");
+                localStorage.setItem("userRole", "admin");
+                localStorage.setItem(
+                    "user",
+                    JSON.stringify({
+                        id: 1,
+                        name: "Admin Sistema",
+                        email: "admin@sysmed.com",
+                        role: "admin",
+                    })
+                );
+
+                log("✅ Token configurado no localStorage!", "success");
+                log(`Token: ${token.substring(0, 20)}...`);
+                log("💡 Agora você pode testar o dashboard");
+            }
+
+            async function testarDashboard() {
+                clearLog();
+                log("📊 Testando API do Dashboard...");
+
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    log(
+                        "❌ Token não encontrado! Configure primeiro.",
+                        "error"
+                    );
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/dashboard/statistics",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    log(
+                        `Status: ${response.status}`,
+                        response.ok ? "success" : "error"
+                    );
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        log("✅ Dashboard funcionando!", "success");
+
+                        if (data.success && data.data) {
+                            log(
+                                `📈 Total de Pacientes: ${data.data.overview.totalPatients}`
+                            );
+                            log(
+                                `📅 Consultas Hoje: ${data.data.overview.appointmentsToday}`
+                            );
+                            log(
+                                `📊 Consultas Esta Semana: ${data.data.overview.appointmentsThisWeek}`
+                            );
+                            log(
+                                "<pre>" +
+                                    JSON.stringify(data, null, 2) +
+                                    "</pre>"
+                            );
+                        }
+                    } else {
+                        const errorData = await response.text();
+                        log(
+                            `❌ Erro HTTP: ${response.status} - ${response.statusText}`,
+                            "error"
+                        );
+                        log(`Resposta: ${errorData}`, "error");
+                    }
+                } catch (error) {
+                    log(`❌ Erro de conexão: ${error.message}`, "error");
+                }
+            }
+
+            async function testarPacientes() {
+                clearLog();
+                log("👥 Testando API de Pacientes...");
+
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    log(
+                        "❌ Token não encontrado! Configure primeiro.",
+                        "error"
+                    );
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/patients",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    log(
+                        `Status: ${response.status}`,
+                        response.ok ? "success" : "error"
+                    );
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        log("✅ API de Pacientes funcionando!", "success");
+                        log("<pre>" + JSON.stringify(data, null, 2) + "</pre>");
+                    } else {
+                        const errorData = await response.text();
+                        log(
+                            `❌ Erro HTTP: ${response.status} - ${response.statusText}`,
+                            "error"
+                        );
+                        log(`Resposta: ${errorData}`, "error");
+                    }
+                } catch (error) {
+                    log(`❌ Erro de conexão: ${error.message}`, "error");
+                }
+            }
+
+            // Verificar se já tem token ao carregar
+            window.onload = function () {
+                const token = localStorage.getItem("authToken");
+                if (token) {
+                    log(
+                        `🔑 Token encontrado: ${token.substring(0, 20)}...`,
+                        "success"
+                    );
+                } else {
+                    log(
+                        "⚠️ Nenhum token encontrado. Configure primeiro.",
+                        "error"
+                    );
+                }
+            };
+        </script>
+    </body>
+</html>

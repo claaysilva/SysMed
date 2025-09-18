@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Login Real - SysMed</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 500px;
+                margin: 50px auto;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            .login-container {
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #1976d2;
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .form-group {
+                margin-bottom: 20px;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+                color: #333;
+            }
+            input,
+            select {
+                width: 100%;
+                padding: 12px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 16px;
+                box-sizing: border-box;
+            }
+            input:focus,
+            select:focus {
+                outline: none;
+                border-color: #1976d2;
+                box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+            }
+            button {
+                width: 100%;
+                padding: 14px;
+                background: #1976d2;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 16px;
+                cursor: pointer;
+                margin-top: 10px;
+            }
+            button:hover {
+                background: #1565c0;
+            }
+            button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+            .result {
+                margin-top: 20px;
+                padding: 15px;
+                border-radius: 6px;
+                display: none;
+            }
+            .success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            .info {
+                background: #d1ecf1;
+                color: #0c5460;
+                border: 1px solid #bee5eb;
+            }
+            .quick-login {
+                margin-bottom: 20px;
+                text-align: center;
+            }
+            .quick-login button {
+                width: auto;
+                padding: 8px 16px;
+                margin: 5px;
+                font-size: 14px;
+            }
+            pre {
+                background: #f8f9fa;
+                padding: 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="login-container">
+            <h1>🔐 Login SysMed</h1>
+
+            <div class="quick-login">
+                <p><strong>Login Rápido:</strong></p>
+                <button
+                    onclick="loginRapido('admin@sysmed.com', 'Admin Sistema')"
+                >
+                    👨‍💼 Admin
+                </button>
+                <button
+                    onclick="loginRapido('medico@sysmed.com', 'Dr. João Silva')"
+                >
+                    👨‍⚕️ Dr. João
+                </button>
+                <button
+                    onclick="loginRapido('medico2@sysmed.com', 'Dra. Maria Santos')"
+                >
+                    👩‍⚕️ Dra. Maria
+                </button>
+            </div>
+
+            <hr
+                style="margin: 20px 0; border: none; border-top: 1px solid #eee"
+            />
+
+            <form id="loginForm" onsubmit="fazerLogin(event)">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Senha:</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                    />
+                </div>
+
+                <button type="submit" id="loginBtn">Entrar</button>
+            </form>
+
+            <div id="resultado" class="result"></div>
+
+            <div
+                style="
+                    margin-top: 20px;
+                    text-align: center;
+                    font-size: 14px;
+                    color: #666;
+                "
+            >
+                <p><strong>Credenciais de teste:</strong></p>
+                <p>admin@sysmed.com / senha123</p>
+                <p>medico@sysmed.com / senha123</p>
+                <p>medico2@sysmed.com / senha123</p>
+            </div>
+        </div>
+
+        <script>
+            function showResult(message, type) {
+                const resultado = document.getElementById("resultado");
+                resultado.innerHTML = message;
+                resultado.className = `result ${type}`;
+                resultado.style.display = "block";
+            }
+
+            function hideResult() {
+                document.getElementById("resultado").style.display = "none";
+            }
+
+            function loginRapido(email, nome) {
+                document.getElementById("email").value = email;
+                document.getElementById("password").value = "senha123";
+                showResult(`ℹ️ Campos preenchidos para: ${nome}`, "info");
+            }
+
+            async function fazerLogin(event) {
+                event.preventDefault();
+
+                const email = document.getElementById("email").value;
+                const password = document.getElementById("password").value;
+                const loginBtn = document.getElementById("loginBtn");
+
+                loginBtn.disabled = true;
+                loginBtn.textContent = "Entrando...";
+
+                showResult("🔄 Fazendo login...", "info");
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/login",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                            },
+                            body: JSON.stringify({
+                                email: email,
+                                password: password,
+                            }),
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        // Login bem-sucedido
+                        const user = data.data.user;
+                        const token = data.data.token;
+
+                        // Salvar no localStorage
+                        localStorage.setItem("authToken", token);
+                        localStorage.setItem("userName", user.name);
+                        localStorage.setItem("userRole", user.role || "user");
+                        localStorage.setItem("userEmail", user.email);
+                        localStorage.setItem("user", JSON.stringify(user));
+
+                        showResult(
+                            `
+                        ✅ <strong>Login realizado com sucesso!</strong><br><br>
+                        <strong>Usuário:</strong> ${user.name}<br>
+                        <strong>Email:</strong> ${user.email}<br>
+                        <strong>Função:</strong> ${user.role || "Usuário"}<br>
+                        <strong>Token:</strong> ${token.substring(
+                            0,
+                            20
+                        )}...<br><br>
+                        
+                        <button onclick="testarDashboard()" style="margin: 5px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📊 Testar Dashboard
+                        </button>
+                        
+                        <button onclick="abrirDashboard()" style="margin: 5px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🚀 Ir para Dashboard
+                        </button>
+                    `,
+                            "success"
+                        );
+                    } else {
+                        // Login falhou
+                        showResult(
+                            `❌ ${data.message || "Erro no login"}`,
+                            "error"
+                        );
+                    }
+                } catch (error) {
+                    showResult(
+                        `❌ Erro de conexão: ${error.message}<br>
+                    💡 Verifique se o servidor Laravel está rodando em http://localhost:8000`,
+                        "error"
+                    );
+                } finally {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = "Entrar";
+                }
+            }
+
+            async function testarDashboard() {
+                const token = localStorage.getItem("authToken");
+
+                showResult("📊 Testando acesso ao dashboard...", "info");
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/dashboard/statistics",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        showResult(
+                            `
+                        ✅ <strong>Dashboard funcionando!</strong><br><br>
+                        📈 <strong>Total de Pacientes:</strong> ${
+                            data.data.overview.totalPatients
+                        }<br>
+                        📅 <strong>Consultas Hoje:</strong> ${
+                            data.data.overview.appointmentsToday
+                        }<br>
+                        📊 <strong>Consultas Esta Semana:</strong> ${
+                            data.data.overview.appointmentsThisWeek
+                        }<br><br>
+                        
+                        <button onclick="abrirDashboard()" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🚀 Ir para Dashboard Principal
+                        </button>
+                        
+                        <details style="margin-top: 15px;">
+                            <summary style="cursor: pointer; color: #007bff;">Ver dados completos</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `,
+                            "success"
+                        );
+                    } else {
+                        showResult(
+                            `❌ Erro ao acessar dashboard: ${response.status} - ${response.statusText}`,
+                            "error"
+                        );
+                    }
+                } catch (error) {
+                    showResult(`❌ Erro de conexão: ${error.message}`, "error");
+                }
+            }
+
+            function abrirDashboard() {
+                window.open("http://localhost:5175", "_blank");
+            }
+
+            // Verificar se já existe um usuário logado
+            window.onload = function () {
+                const existingToken = localStorage.getItem("authToken");
+                const existingUser = localStorage.getItem("userName");
+
+                if (existingToken && existingUser) {
+                    showResult(
+                        `
+                    ℹ️ <strong>Usuário já logado:</strong> ${existingUser}<br>
+                    <strong>Token:</strong> ${existingToken.substring(
+                        0,
+                        20
+                    )}...<br><br>
+                    
+                    <button onclick="testarDashboard()" style="margin: 5px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        📊 Testar Dashboard
+                    </button>
+                    
+                    <button onclick="abrirDashboard()" style="margin: 5px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🚀 Ir para Dashboard
+                    </button>
+                    
+                    <button onclick="logout()" style="margin: 5px; padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🚪 Logout
+                    </button>
+                `,
+                        "info"
+                    );
+                }
+            };
+
+            function logout() {
+                localStorage.clear();
+                hideResult();
+                document.getElementById("loginForm").reset();
+                showResult("✅ Logout realizado com sucesso!", "success");
+            }
+        </script>
+    </body>
+</html>

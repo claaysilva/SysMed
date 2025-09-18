@@ -1,0 +1,20 @@
+{
+    "admin@sysmed.com": {
+        "user": "Admin Sistema",
+        "email": "admin@sysmed.com",
+        "token": "37|LzaxVrFoWlKaliKlwwqrjPgvydALdQFAX2xBR25n74b9ffc0",
+        "id": 1
+    },
+    "medico@sysmed.com": {
+        "user": "Dr. Jo\u00e3o Silva",
+        "email": "medico@sysmed.com",
+        "token": "38|SW1oQVtc0JumIGVSoNjrZj2N84UiN6vanlQ6adit549b6473",
+        "id": 2
+    },
+    "medico2@sysmed.com": {
+        "user": "Dra. Maria Santos",
+        "email": "medico2@sysmed.com",
+        "token": "39|wfD4lz8hsk5CSMGeaWgbA1ROIlFbKTNwoTaA6VIE94d0a961",
+        "id": 3
+    }
+}

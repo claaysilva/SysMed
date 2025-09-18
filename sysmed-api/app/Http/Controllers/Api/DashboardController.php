@@ -19,14 +19,17 @@ class DashboardController extends Controller
   public function statistics(Request $request)
   {
     try {
+      Log::info('Dashboard statistics called', ['user' => optional($request->user())->id]);
       $today = Carbon::today();
       $thisMonth = Carbon::now()->startOfMonth();
       $thisWeek = Carbon::now()->startOfWeek();
 
       // Estatísticas básicas
       $totalPatients = Patient::count();
+      Log::info('Dashboard stats step', ['step' => 'patients_count', 'totalPatients' => $totalPatients]);
       $newPatientsThisMonth = Patient::where('created_at', '>=', $thisMonth)->count();
       $newPatientsThisWeek = Patient::where('created_at', '>=', $thisWeek)->count();
+      Log::info('Dashboard stats step', ['step' => 'new_patients', 'month' => $newPatientsThisMonth, 'week' => $newPatientsThisWeek]);
 
       // Estatísticas de consultas
       $appointmentsToday = Appointment::whereDate('data_hora_inicio', $today)->count();
@@ -38,6 +41,7 @@ class DashboardController extends Controller
         $thisMonth,
         Carbon::now()->endOfMonth()
       ])->count();
+      Log::info('Dashboard stats step', ['step' => 'appointments_counts', 'today' => $appointmentsToday, 'week' => $appointmentsThisWeek, 'month' => $appointmentsThisMonth]);
 
       // Consultas por status
       $appointmentsByStatus = [
@@ -46,6 +50,7 @@ class DashboardController extends Controller
         'realizado' => Appointment::where('status', 'realizado')->count(),
         'cancelado' => Appointment::where('status', 'cancelado')->count(),
       ];
+      Log::info('Dashboard stats step', ['step' => 'appointments_by_status', 'data' => $appointmentsByStatus]);
 
       // Próximas consultas simplificadas
       $upcomingAppointments = Appointment::with(['patient', 'user'])
@@ -69,8 +74,9 @@ class DashboardController extends Controller
             ]
           ];
         });
+      Log::info('Dashboard stats step', ['step' => 'upcoming_loaded', 'count' => $upcomingAppointments->count()]);
 
-      return response()->json([
+      $payload = [
         'success' => true,
         'data' => [
           'overview' => [
@@ -92,17 +98,39 @@ class DashboardController extends Controller
             'byStatus' => $appointmentsByStatus,
             'upcoming' => $upcomingAppointments,
           ],
-          'recentReports' => Report::with('patient')->orderBy('created_at', 'desc')->limit(5)->get(),
+          // Relatórios recentes (sem relação patient, pois não existe no modelo)
+          'recentReports' => Report::orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($report) {
+              return [
+                'id' => $report->id,
+                // alinhar com interface do frontend (usa 'titulo')
+                'titulo' => $report->title,
+                'created_at' => $report->created_at,
+                // manter compatibilidade: frontend esperava patient.nome_completo, mas não há relação
+                // enviamos null para evitar quebra caso seja usado futuramente
+                'patient' => null,
+              ];
+            }),
           'monthlyActivity' => [], // Simplificado por ora
         ]
-      ]);
+      ];
+      Log::info('Dashboard statistics success', $payload);
+
+      return response()->json($payload)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     } catch (\Exception $e) {
       Log::error('Dashboard error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
       return response()->json([
         'success' => false,
         'message' => 'Erro ao obter estatísticas: ' . $e->getMessage()
-      ], 500);
+      ], 500)->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     }
   }
 
@@ -132,14 +160,18 @@ class DashboardController extends Controller
       return response()->json([
         'success' => true,
         'data' => $activities
-      ]);
+      ])->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     } catch (\Exception $e) {
       Log::error('Recent activity error: ' . $e->getMessage());
 
       return response()->json([
         'success' => false,
         'message' => 'Erro ao obter atividades recentes: ' . $e->getMessage()
-      ], 500);
+      ], 500)->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     }
   }
 }

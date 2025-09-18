@@ -105,30 +105,30 @@ class DatabaseSeeder extends Seeder
         // Criar prontuários médicos
         \App\Models\MedicalRecord::updateOrCreate([
             'patient_id' => $paciente1->id,
-            'doctor_id' => $medico1->id,
-            'consultation_date' => now()->format('Y-m-d'),
+            'user_id' => $medico1->id,
+            'data_consulta' => now()->format('Y-m-d'),
         ], [
-            'consultation_time' => '09:00:00',
-            'consultation_type' => 'consulta',
-            'chief_complaint' => 'Dores de cabeça eventuais',
-            'physical_examination' => 'PA: 120x80, FC: 72bpm, Normal',
-            'assessment' => 'Cefaleia tensional',
-            'plan' => 'Orientações gerais e acompanhamento',
-            'status' => 'completed'
+            'horario_consulta' => '09:00:00',
+            'tipo_consulta' => 'consulta',
+            'queixa_principal' => 'Dores de cabeça eventuais',
+            'exame_fisico_geral' => 'PA: 120x80, FC: 72bpm, Normal',
+            'hipotese_diagnostica' => 'Cefaleia tensional',
+            'conduta' => 'Orientações gerais e acompanhamento',
+            'status' => 'finalizado'
         ]);
 
         \App\Models\MedicalRecord::updateOrCreate([
             'patient_id' => $paciente2->id,
-            'doctor_id' => $medico2->id,
-            'consultation_date' => now()->format('Y-m-d'),
+            'user_id' => $medico2->id,
+            'data_consulta' => now()->format('Y-m-d'),
         ], [
-            'consultation_time' => '14:30:00',
-            'consultation_type' => 'retorno',
-            'chief_complaint' => 'Acompanhamento hipertensão',
-            'physical_examination' => 'PA: 140x90, FC: 85bpm',
-            'assessment' => 'Hipertensão arterial',
-            'plan' => 'Ajuste medicamentoso',
-            'status' => 'completed'
+            'horario_consulta' => '14:30:00',
+            'tipo_consulta' => 'retorno',
+            'queixa_principal' => 'Acompanhamento hipertensão',
+            'exame_fisico_geral' => 'PA: 140x90, FC: 85bpm',
+            'hipotese_diagnostica' => 'Hipertensão arterial',
+            'conduta' => 'Ajuste medicamentoso',
+            'status' => 'finalizado'
         ]);
 
         // Executar seeder de templates de relatórios

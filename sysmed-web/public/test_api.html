@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Teste API Dashboard</title>
+    </head>
+    <body>
+        <h1>Teste da API do Dashboard</h1>
+        <button onclick="testarConexaoBasica()">Testar Conexão Básica</button>
+        <button onclick="testarAPI()">Testar API Dashboard</button>
+        <button onclick="testarPacientes()">Testar API Pacientes</button>
+        <div id="resultado"></div>
+
+        <script>
+            // Adicionar token ao localStorage
+            localStorage.setItem(
+                "authToken",
+                "32|BOrxNMzGNGeRiBeYOr8BqGbatakwqSvPgUdDMOWl7127beda"
+            );
+
+            async function testarConexaoBasica() {
+                const resultado = document.getElementById("resultado");
+                resultado.innerHTML = "Testando conexão básica...";
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/test",
+                        {
+                            method: "GET",
+                            headers: {
+                                Accept: "application/json",
+                            },
+                        }
+                    );
+
+                    console.log("Response status:", response.status);
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `HTTP ${response.status}: ${response.statusText}`
+                        );
+                    }
+
+                    const data = await response.json();
+                    console.log("Data:", data);
+
+                    resultado.innerHTML = `
+                    <h3>Conexão Básica - Sucesso!</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                } catch (error) {
+                    console.error("Erro:", error);
+                    resultado.innerHTML = `
+                    <h3>Erro na Conexão Básica:</h3>
+                    <p style="color: red;">${error.message}</p>
+                `;
+                }
+            }
+
+            async function testarPacientes() {
+                const resultado = document.getElementById("resultado");
+                resultado.innerHTML = "Testando API de pacientes...";
+
+                try {
+                    const token = localStorage.getItem("authToken");
+                    console.log("Token:", token);
+
+                    const response = await fetch(
+                        "http://localhost:8000/api/patients",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                            },
+                        }
+                    );
+
+                    console.log("Response status:", response.status);
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `HTTP ${response.status}: ${response.statusText}`
+                        );
+                    }
+
+                    const data = await response.json();
+                    console.log("Data:", data);
+
+                    resultado.innerHTML = `
+                    <h3>API Pacientes - Sucesso!</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                } catch (error) {
+                    console.error("Erro:", error);
+                    resultado.innerHTML = `
+                    <h3>Erro na API Pacientes:</h3>
+                    <p style="color: red;">${error.message}</p>
+                `;
+                }
+            }
+
+            async function testarAPI() {
+                const resultado = document.getElementById("resultado");
+                resultado.innerHTML = "Testando...";
+
+                try {
+                    const token = localStorage.getItem("authToken");
+                    console.log("Token:", token);
+
+                    const response = await fetch(
+                        "http://localhost:8000/api/dashboard/statistics",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                            },
+                        }
+                    );
+
+                    console.log("Response status:", response.status);
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `HTTP ${response.status}: ${response.statusText}`
+                        );
+                    }
+
+                    const data = await response.json();
+                    console.log("Data:", data);
+
+                    resultado.innerHTML = `
+                    <h3>Sucesso!</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                } catch (error) {
+                    console.error("Erro:", error);
+                    resultado.innerHTML = `
+                    <h3>Erro:</h3>
+                    <p style="color: red;">${error.message}</p>
+                `;
+                }
+            }
+        </script>
+    </body>
+</html>

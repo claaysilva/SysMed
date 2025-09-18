@@ -1,12 +1,52 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Calendar, Clock, Users, Search, Plus, Filter } from "lucide-react";
+import {
+    Calendar,
+    Clock,
+    Users,
+    Search,
+    Plus,
+    Filter,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react";
 import { useAppointments } from "../hooks/useAppointments";
-import { format } from "date-fns";
+import {
+    format,
+    addDays,
+    subDays,
+    startOfDay,
+    isSameDay,
+    parseISO,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
 import AppointmentForm from "../components/AppointmentForm";
-import AppointmentCalendar from "../components/AppointmentCalendar";
+
+import React, { useState, useCallback, useEffect } from "react";
+import {
+    Calendar,
+    Clock,
+    Users,
+    Search,
+    Plus,
+    Filter,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react";
+import { useAppointments } from "../hooks/useAppointments";
+import {
+    format,
+    addDays,
+    subDays,
+    startOfDay,
+    isSameDay,
+    parseISO,
+} from "date-fns";
+import { ptBR } from "date-fns/locale";
+import Button from "../components/Button";
+import Modal from "../components/Modal";
+import AppointmentForm from "../components/AppointmentForm";
 
 type AppointmentType = {
     id: number;
@@ -33,10 +73,14 @@ const AppointmentsPage: React.FC = () => {
     const { appointments, loading, error, fetchAppointments } =
         useAppointments();
 
-    const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+    // Estados principais
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [viewMode, setViewMode] = useState<"day" | "week">("day");
     const [showForm, setShowForm] = useState(false);
     const [selectedAppointment, setSelectedAppointment] =
         useState<AppointmentType | null>(null);
+
+    // Estados de filtros
     const [filters, setFilters] = useState({
         search: "",
         status: "",
@@ -52,10 +96,8 @@ const AppointmentsPage: React.FC = () => {
     }, [filters, fetchAppointments]);
 
     useEffect(() => {
-        // Carrega agendamentos na primeira montagem do componente
         fetchAppointments();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Array vazio para executar apenas uma vez
+    }, [fetchAppointments]);
 
     const handleCreateAppointment = () => {
         setSelectedAppointment(null);
@@ -80,15 +122,13 @@ const AppointmentsPage: React.FC = () => {
 
     const getStatusColor = (status: string) => {
         const colors = {
-            agendado: "bg-yellow-100 text-yellow-800",
-            confirmado: "bg-blue-100 text-blue-800",
-            realizado: "bg-green-100 text-green-800",
-            cancelado: "bg-red-100 text-red-800",
-            faltou: "bg-gray-100 text-gray-800",
+            agendado: "#fbbf24", // amber-400
+            confirmado: "#3b82f6", // blue-500
+            realizado: "#10b981", // emerald-500
+            cancelado: "#ef4444", // red-500
+            faltou: "#6b7280", // gray-500
         };
-        return (
-            colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
-        );
+        return colors[status as keyof typeof colors] || "#6b7280";
     };
 
     const getStatusLabel = (status: string) => {
@@ -102,337 +142,454 @@ const AppointmentsPage: React.FC = () => {
         return labels[status as keyof typeof labels] || status;
     };
 
+    // Gerar horários do dia (8h às 18h, intervalos de 30min)
+    const generateTimeSlots = () => {
+        const slots = [];
+        for (let hour = 8; hour < 18; hour++) {
+            slots.push(`${hour.toString().padStart(2, "0")}:00`);
+            slots.push(`${hour.toString().padStart(2, "0")}:30`);
+        }
+        return slots;
+    };
+
+    const timeSlots = generateTimeSlots();
+
+    // Filtrar consultas do dia atual
+    const todayAppointments = appointments.filter((appointment) => {
+        const appointmentDate = new Date(appointment.data_hora_inicio);
+        return isSameDay(appointmentDate, currentDate);
+    });
+
+    const navigateDate = (direction: "prev" | "next") => {
+        if (direction === "prev") {
+            setCurrentDate(subDays(currentDate, 1));
+        } else {
+            setCurrentDate(addDays(currentDate, 1));
+        }
+    };
+
     if (loading && appointments.length === 0) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "400px",
+                }}
+            >
+                <div
+                    style={{
+                        width: "40px",
+                        height: "40px",
+                        border: "3px solid #e5e7eb",
+                        borderTop: "3px solid #3b82f6",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                    }}
+                />
+                <style>{`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}</style>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
-                        Agendamentos
+        <div
+            style={{
+                backgroundColor: "#f8fafc",
+                minHeight: "100vh",
+                fontFamily: "Roboto, sans-serif",
+            }}
+        >
+            {/* Header estilo iClinic */}
+            <div
+                style={{
+                    backgroundColor: "white",
+                    borderBottom: "1px solid #e5e7eb",
+                    padding: "1rem 2rem",
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}
+                >
+                    <h1
+                        style={{
+                            fontSize: "1.5rem",
+                            fontWeight: "500",
+                            color: "#1f2937",
+                            margin: 0,
+                        }}
+                    >
+                        Dr. João Silva
                     </h1>
-                    <p className="text-gray-600">
-                        Gerencie as consultas e agendamentos
-                    </p>
-                </div>
-                <div className="flex space-x-2">
-                    <Button onClick={handleCreateAppointment}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nova Consulta
+                    <Button
+                        onClick={handleCreateAppointment}
+                        style={{
+                            backgroundColor: "#2563eb",
+                            padding: "0.5rem 1rem",
+                            fontSize: "0.875rem",
+                        }}
+                    >
+                        <Plus size={16} style={{ marginRight: "0.5rem" }} />
+                        Novo Agendamento
                     </Button>
                 </div>
             </div>
 
-            {/* Estatísticas */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                        <Calendar className="h-8 w-8 text-blue-600" />
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-600">
-                                Total de Consultas
-                            </p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {appointments.length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                        <Clock className="h-8 w-8 text-yellow-600" />
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-600">
-                                Agendadas
-                            </p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {
-                                    appointments.filter(
-                                        (a) => a.status === "agendado"
-                                    ).length
-                                }
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                        <Users className="h-8 w-8 text-green-600" />
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-600">
-                                Realizadas
-                            </p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {
-                                    appointments.filter(
-                                        (a) => a.status === "realizado"
-                                    ).length
-                                }
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                        <Filter className="h-8 w-8 text-red-600" />
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-600">
-                                Canceladas
-                            </p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {
-                                    appointments.filter(
-                                        (a) => a.status === "cancelado"
-                                    ).length
-                                }
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Filtros e Controles */}
-            <div className="bg-white rounded-lg shadow p-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Buscar
-                        </label>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Buscar paciente..."
-                                value={filters.search}
-                                onChange={(e) =>
-                                    setFilters((prev) => ({
-                                        ...prev,
-                                        search: e.target.value,
-                                    }))
-                                }
-                                className="pl-10 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Status
-                        </label>
-                        <select
-                            value={filters.status}
-                            onChange={(e) =>
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    status: e.target.value,
-                                }))
-                            }
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                            <option value="">Todos</option>
-                            <option value="agendado">Agendado</option>
-                            <option value="confirmado">Confirmado</option>
-                            <option value="realizado">Realizado</option>
-                            <option value="cancelado">Cancelado</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Data
-                        </label>
-                        <input
-                            type="date"
-                            value={filters.date}
-                            onChange={(e) =>
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    date: e.target.value,
-                                }))
-                            }
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div className="flex items-end">
-                        <Button onClick={loadAppointments} variant="outline">
-                            Filtrar
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Controles de Visualização */}
-                <div className="flex justify-between items-center">
-                    <div className="flex space-x-2">
+            {/* Toolbar de navegação */}
+            <div
+                style={{
+                    backgroundColor: "white",
+                    borderBottom: "1px solid #e5e7eb",
+                    padding: "1rem 2rem",
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}
+                >
+                    {/* Navegação de data */}
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "1rem",
+                        }}
+                    >
                         <button
-                            onClick={() => setViewMode("list")}
-                            className={`px-4 py-2 rounded-md text-sm font-medium ${
-                                viewMode === "list"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "text-gray-500 hover:text-gray-700"
-                            }`}
+                            onClick={() => setCurrentDate(new Date())}
+                            style={{
+                                padding: "0.5rem 1rem",
+                                backgroundColor: "#2563eb",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                fontSize: "0.875rem",
+                                fontWeight: "500",
+                                cursor: "pointer",
+                            }}
                         >
-                            Lista
+                            HOJE
+                        </button>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                            }}
+                        >
+                            <button
+                                onClick={() => navigateDate("prev")}
+                                style={{
+                                    padding: "0.5rem",
+                                    backgroundColor: "transparent",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                }}
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <button
+                                onClick={() => navigateDate("next")}
+                                style={{
+                                    padding: "0.5rem",
+                                    backgroundColor: "transparent",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                }}
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+
+                        <h2
+                            style={{
+                                fontSize: "1.125rem",
+                                fontWeight: "500",
+                                color: "#1f2937",
+                                margin: 0,
+                            }}
+                        >
+                            {format(currentDate, "d 'de' MMMM 'de' yyyy", {
+                                locale: ptBR,
+                            })}
+                        </h2>
+                    </div>
+
+                    {/* Seletor de visualização */}
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button
+                            onClick={() => setViewMode("day")}
+                            style={{
+                                padding: "0.5rem 1rem",
+                                backgroundColor:
+                                    viewMode === "day"
+                                        ? "#dbeafe"
+                                        : "transparent",
+                                color:
+                                    viewMode === "day" ? "#2563eb" : "#6b7280",
+                                border: "1px solid #d1d5db",
+                                borderRadius: "4px",
+                                fontSize: "0.875rem",
+                                cursor: "pointer",
+                            }}
+                        >
+                            DIA
                         </button>
                         <button
-                            onClick={() => setViewMode("calendar")}
-                            className={`px-4 py-2 rounded-md text-sm font-medium ${
-                                viewMode === "calendar"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "text-gray-500 hover:text-gray-700"
-                            }`}
+                            onClick={() => setViewMode("week")}
+                            style={{
+                                padding: "0.5rem 1rem",
+                                backgroundColor:
+                                    viewMode === "week"
+                                        ? "#dbeafe"
+                                        : "transparent",
+                                color:
+                                    viewMode === "week" ? "#2563eb" : "#6b7280",
+                                border: "1px solid #d1d5db",
+                                borderRadius: "4px",
+                                fontSize: "0.875rem",
+                                cursor: "pointer",
+                            }}
                         >
-                            Calendário
+                            SEMANA
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Conteúdo Principal */}
-            {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                    <p className="text-red-600">{error}</p>
-                </div>
-            )}
+            {/* Conteúdo principal */}
+            <div style={{ padding: "0 2rem" }}>
+                {/* Visualização por dia */}
+                {viewMode === "day" && (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "80px 1fr",
+                            backgroundColor: "white",
+                            borderRadius: "8px",
+                            overflow: "hidden",
+                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                            marginTop: "1rem",
+                        }}
+                    >
+                        {/* Coluna de horários */}
+                        <div
+                            style={{
+                                backgroundColor: "#f9fafb",
+                                borderRight: "1px solid #e5e7eb",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    height: "60px",
+                                    borderBottom: "1px solid #e5e7eb",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "0.875rem",
+                                    fontWeight: "500",
+                                    color: "#6b7280",
+                                }}
+                            >
+                                Horário
+                            </div>
+                            {timeSlots.map((time) => (
+                                <div
+                                    key={time}
+                                    style={{
+                                        height: "60px",
+                                        borderBottom: "1px solid #f3f4f6",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "0.875rem",
+                                        color: "#6b7280",
+                                    }}
+                                >
+                                    {time}
+                                </div>
+                            ))}
+                        </div>
 
-            {viewMode === "list" ? (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Paciente
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Data/Hora
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Tipo
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Valor
-                                    </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Ações
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {appointments.map((appointment) => (
-                                    <tr
-                                        key={appointment.id}
-                                        className="hover:bg-gray-50"
+                        {/* Coluna de consultas */}
+                        <div style={{ position: "relative" }}>
+                            <div
+                                style={{
+                                    height: "60px",
+                                    borderBottom: "1px solid #e5e7eb",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "0.875rem",
+                                    fontWeight: "500",
+                                    color: "#6b7280",
+                                    backgroundColor: "#f9fafb",
+                                }}
+                            >
+                                {format(currentDate, "EEEE", { locale: ptBR })}
+                            </div>
+
+                            {timeSlots.map((time, index) => {
+                                const appointment = todayAppointments.find(
+                                    (apt) => {
+                                        const aptTime = format(
+                                            new Date(apt.data_hora_inicio),
+                                            "HH:mm"
+                                        );
+                                        return aptTime === time;
+                                    }
+                                );
+
+                                return (
+                                    <div
+                                        key={time}
+                                        style={{
+                                            height: "60px",
+                                            borderBottom: "1px solid #f3f4f6",
+                                            position: "relative",
+                                            cursor: "pointer",
+                                        }}
+                                        onClick={() =>
+                                            !appointment &&
+                                            handleCreateAppointment()
+                                        }
                                     >
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div>
-                                                <div className="text-sm font-medium text-gray-900">
+                                        {appointment && (
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEditAppointment(
+                                                        appointment
+                                                    );
+                                                }}
+                                                style={{
+                                                    position: "absolute",
+                                                    top: "4px",
+                                                    left: "8px",
+                                                    right: "8px",
+                                                    bottom: "4px",
+                                                    backgroundColor:
+                                                        getStatusColor(
+                                                            appointment.status
+                                                        ),
+                                                    borderRadius: "4px",
+                                                    padding: "0.5rem",
+                                                    color: "white",
+                                                    cursor: "pointer",
+                                                    fontSize: "0.875rem",
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    justifyContent: "center",
+                                                    boxShadow:
+                                                        "0 1px 3px rgba(0, 0, 0, 0.2)",
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        fontWeight: "500",
+                                                        marginBottom: "2px",
+                                                    }}
+                                                >
                                                     {
                                                         appointment.patient
                                                             .nome_completo
                                                     }
                                                 </div>
-                                                <div className="text-sm text-gray-500">
-                                                    {
-                                                        appointment.patient
-                                                            .telefone
-                                                    }
+                                                <div
+                                                    style={{
+                                                        fontSize: "0.75rem",
+                                                        opacity: 0.9,
+                                                    }}
+                                                >
+                                                    {appointment.tipo_consulta ||
+                                                        "Consulta"}
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
-                                                {format(
-                                                    new Date(
-                                                        appointment.data_hora_inicio
-                                                    ),
-                                                    "dd/MM/yyyy",
-                                                    { locale: ptBR }
-                                                )}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                {format(
-                                                    new Date(
-                                                        appointment.data_hora_inicio
-                                                    ),
-                                                    "HH:mm"
-                                                )}{" "}
-                                                -{" "}
-                                                {format(
-                                                    new Date(
-                                                        appointment.data_hora_fim
-                                                    ),
-                                                    "HH:mm"
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm text-gray-900 capitalize">
-                                                {appointment.tipo_consulta ||
-                                                    "Consulta"}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span
-                                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                                                    appointment.status
-                                                )}`}
-                                            >
-                                                {getStatusLabel(
-                                                    appointment.status
-                                                )}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {appointment.valor
-                                                ? `R$ ${Number(
-                                                      appointment.valor
-                                                  ).toFixed(2)}`
-                                                : "-"}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex justify-end space-x-2">
-                                                <button
-                                                    onClick={() =>
-                                                        handleEditAppointment(
-                                                            appointment
-                                                        )
-                                                    }
-                                                    className="text-indigo-600 hover:text-indigo-900"
-                                                >
-                                                    Editar
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            ) : (
-                <AppointmentCalendar
-                    appointments={appointments}
-                    onAppointmentClick={handleEditAppointment}
-                    onDateSelect={(date) => {
-                        const formattedDate = format(date, "yyyy-MM-dd");
-                        setFilters((prev) => ({
-                            ...prev,
-                            date: formattedDate,
-                        }));
-                        loadAppointments();
-                    }}
-                />
-            )}
+                                        )}
+                                    </div>
+                                );
+                            })}
 
-            {/* Modal do Formulário */}
+                            {/* Linha de horário de almoço */}
+                            <div
+                                style={{
+                                    position: "absolute",
+                                    top: `${60 + 8 * 60}px`, // 12:00 (4 horas * 2 slots * 30px)
+                                    left: 0,
+                                    right: 0,
+                                    height: "120px", // 2 horas de almoço
+                                    backgroundColor: "rgba(251, 191, 36, 0.1)",
+                                    border: "1px solid rgba(251, 191, 36, 0.3)",
+                                    borderRadius: "4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    pointerEvents: "none",
+                                    fontSize: "0.75rem",
+                                    color: "#92400e",
+                                    fontWeight: "500",
+                                }}
+                            >
+                                Horário de almoço
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Visualização por semana (simplificada) */}
+                {viewMode === "week" && (
+                    <div
+                        style={{
+                            backgroundColor: "white",
+                            borderRadius: "8px",
+                            padding: "2rem",
+                            marginTop: "1rem",
+                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                            textAlign: "center",
+                        }}
+                    >
+                        <h3
+                            style={{
+                                fontSize: "1.125rem",
+                                color: "#6b7280",
+                                margin: 0,
+                            }}
+                        >
+                            Visualização semanal em desenvolvimento
+                        </h3>
+                        <p
+                            style={{
+                                color: "#9ca3af",
+                                marginTop: "0.5rem",
+                            }}
+                        >
+                            Use a visualização diária por enquanto
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Modal do formulário */}
             {showForm && (
                 <Modal
                     isOpen={showForm}
@@ -449,6 +606,26 @@ const AppointmentsPage: React.FC = () => {
                         onCancel={handleFormCancel}
                     />
                 </Modal>
+            )}
+
+            {/* Mostrar erro se houver */}
+            {error && (
+                <div
+                    style={{
+                        position: "fixed",
+                        bottom: "1rem",
+                        right: "1rem",
+                        backgroundColor: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderRadius: "8px",
+                        padding: "1rem",
+                        color: "#dc2626",
+                        fontSize: "0.875rem",
+                        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                    }}
+                >
+                    {error}
+                </div>
             )}
         </div>
     );

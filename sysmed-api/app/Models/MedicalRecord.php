@@ -15,41 +15,44 @@ class MedicalRecord extends Model
 
     protected $fillable = [
         'patient_id',
+        'user_id',
         'appointment_id',
-        'doctor_id',
-        'consultation_date',
-        'consultation_time',
-        'consultation_type',
-        'chief_complaint',
-        'history_present_illness',
-        'past_medical_history',
-        'medications',
-        'allergies',
-        'physical_examination',
-        'vital_signs',
-        'assessment',
-        'plan',
-        'observations',
-        'status',
-        'signed_at',
-        'digital_signature',
-        'is_private',
-        'metadata'
+        'data_consulta',
+        'horario_consulta',
+        'tipo_consulta',
+        'queixa_principal',
+        'historia_doenca_atual',
+        'historia_patologica_pregressa',
+        'historia_familiar',
+        'historia_social',
+        'medicamentos_uso',
+        'alergias',
+        'sinais_vitais',
+        'exame_fisico_geral',
+        'exame_fisico_especifico',
+        'hipotese_diagnostica',
+        'cid',
+        'conduta',
+        'prescricao',
+        'exames_solicitados',
+        'orientacoes',
+        'retorno',
+        'observacoes',
+        'anexos',
+        'status'
     ];
 
     protected $casts = [
-        'consultation_date' => 'date',
-        'consultation_time' => 'datetime:H:i',
-        'vital_signs' => 'array',
-        'metadata' => 'array',
-        'signed_at' => 'datetime',
-        'is_private' => 'boolean'
+        'data_consulta' => 'date',
+        'horario_consulta' => 'datetime:H:i',
+        'sinais_vitais' => 'array',
+        'anexos' => 'array',
+        'retorno' => 'date'
     ];
 
     protected $appends = [
-        'consultation_datetime',
         'status_label',
-        'consultation_type_label'
+        'tipo_consulta_label'
     ];
 
     // Relacionamentos
@@ -58,9 +61,9 @@ class MedicalRecord extends Model
         return $this->belongsTo(Patient::class);
     }
 
-    public function doctor(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'doctor_id');
+        return $this->belongsTo(User::class);
     }
 
     public function appointment(): BelongsTo
@@ -68,50 +71,28 @@ class MedicalRecord extends Model
         return $this->belongsTo(Appointment::class);
     }
 
-    public function diagnoses(): HasMany
-    {
-        return $this->hasMany(Diagnosis::class);
-    }
-
-    public function prescriptions(): HasMany
-    {
-        return $this->hasMany(Prescription::class);
-    }
-
-    public function attachments(): HasMany
-    {
-        return $this->hasMany(MedicalAttachment::class);
-    }
-
     // Accessors
-    protected function consultationDatetime(): Attribute
-    {
-        return Attribute::make(
-            get: fn() => $this->consultation_date && $this->consultation_time
-                ? Carbon::parse($this->consultation_date->format('Y-m-d') . ' ' . $this->consultation_time)
-                : null
-        );
-    }
-
     protected function statusLabel(): Attribute
     {
         return Attribute::make(
             get: fn() => match ($this->status) {
-                'draft' => 'Rascunho',
-                'completed' => 'Concluído',
-                'signed' => 'Assinado',
+                'rascunho' => 'Rascunho',
+                'finalizado' => 'Finalizado',
+                'assinado' => 'Assinado',
                 default => 'Desconhecido'
             }
         );
     }
 
-    protected function consultationTypeLabel(): Attribute
+    protected function tipoConsultaLabel(): Attribute
     {
         return Attribute::make(
-            get: fn() => match ($this->consultation_type) {
+            get: fn() => match ($this->tipo_consulta) {
                 'consulta' => 'Consulta',
                 'retorno' => 'Retorno',
-                'urgencia' => 'Urgência',
+                'emergencia' => 'Emergência',
+                'exame' => 'Exame',
+                'cirurgia' => 'Cirurgia',
                 default => 'Outro'
             }
         );
@@ -123,9 +104,9 @@ class MedicalRecord extends Model
         return $query->where('patient_id', $patientId);
     }
 
-    public function scopeByDoctor($query, $doctorId)
+    public function scopeByUser($query, $userId)
     {
-        return $query->where('doctor_id', $doctorId);
+        return $query->where('user_id', $userId);
     }
 
     public function scopeByStatus($query, $status)
@@ -135,50 +116,34 @@ class MedicalRecord extends Model
 
     public function scopeInDateRange($query, $startDate, $endDate)
     {
-        return $query->whereBetween('consultation_date', [$startDate, $endDate]);
+        return $query->whereBetween('data_consulta', [$startDate, $endDate]);
     }
 
-    public function scopeSigned($query)
+    public function scopeAssinados($query)
     {
-        return $query->where('status', 'signed');
-    }
-
-    public function scopePublic($query)
-    {
-        return $query->where('is_private', false);
+        return $query->where('status', 'assinado');
     }
 
     // Métodos auxiliares
-    public function isSigned(): bool
+    public function isAssinado(): bool
     {
-        return $this->status === 'signed';
+        return $this->status === 'assinado';
     }
 
     public function canBeEdited(): bool
     {
-        return $this->status === 'draft';
+        return $this->status === 'rascunho';
     }
 
-    public function sign(string $signature = null): bool
+    public function getSinalVital(string $key)
     {
-        $this->update([
-            'status' => 'signed',
-            'signed_at' => now(),
-            'digital_signature' => $signature ?? hash('sha256', $this->id . now()->timestamp)
-        ]);
-
-        return true;
+        return $this->sinais_vitais[$key] ?? null;
     }
 
-    public function getVitalSign(string $key)
+    public function setSinalVital(string $key, $value): void
     {
-        return $this->vital_signs[$key] ?? null;
-    }
-
-    public function setVitalSign(string $key, $value): void
-    {
-        $vitalSigns = $this->vital_signs ?? [];
-        $vitalSigns[$key] = $value;
-        $this->vital_signs = $vitalSigns;
+        $sinaisVitais = $this->sinais_vitais ?? [];
+        $sinaisVitais[$key] = $value;
+        $this->sinais_vitais = $sinaisVitais;
     }
 }

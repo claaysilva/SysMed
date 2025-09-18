@@ -6,22 +6,32 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\AppointmentController;
-use App\Http\Controllers\MedicalRecordController;
+use App\Http\Controllers\Api\MedicalRecordController;
+use App\Http\Controllers\Api\MedicalRecordEntryController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\TestController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/doctors', [DoctorController::class, 'index'])->middleware('auth:sanctum');
-Route::apiResource('/patients', PatientController::class)->middleware('auth:sanctum');
-Route::apiResource('/appointments', AppointmentController::class)->middleware('auth:sanctum');
+// Rota de teste simples
+Route::get('/ping', function () {
+    return response()->json(['message' => 'pong', 'status' => 'ok']);
+});
 
-use App\Http\Controllers\Api\MedicalRecordEntryController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\Api\DashboardController;
+Route::post('/login', [AuthController::class, 'login'])->name('login');
+
+// Rotas de teste sem auth
+Route::get('/test', [TestController::class, 'simpleTest']);
+Route::get('/dashboard/test', [TestController::class, 'dashboardTest']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/doctors', [DoctorController::class, 'index']);
+    Route::apiResource('/patients', PatientController::class);
+    Route::apiResource('/appointments', AppointmentController::class);
+
     // Rotas do dashboard
     Route::get('/dashboard/statistics', [DashboardController::class, 'statistics']);
     Route::get('/dashboard/recent-activity', [DashboardController::class, 'recentActivity']);
@@ -36,9 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rotas do sistema de prontuários
     Route::apiResource('/medical-records', MedicalRecordController::class);
-    Route::post('/medical-records/{medicalRecord}/sign', [MedicalRecordController::class, 'sign']);
-    Route::get('/medical-records-statistics', [MedicalRecordController::class, 'statistics']);
-    Route::get('/patients/{patient}/medical-records', [MedicalRecordController::class, 'byPatient']);
+    Route::get('/patients/{patientId}/medical-records', [MedicalRecordController::class, 'byPatient']);
 
     // Rotas do sistema de relatórios
     Route::apiResource('/reports', ReportController::class);

@@ -1,0 +1,11 @@
+Token para teste do Dashboard:
+24|EKZzIYF94qKcCBvHguXZfxpZwjvrId19ZIWejltd58a242cf
+
+Para testar:
+1. Abrir http://localhost:5173 
+2. Fazer login ou adicionar o token manualmente no localStorage
+3. Navegar para o Dashboard
+4. Verificar se as estatísticas carregam sem erro
+
+API está rodando em: http://localhost:8001
+Frontend está rodando em: http://localhost:5173

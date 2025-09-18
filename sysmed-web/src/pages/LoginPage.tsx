@@ -20,23 +20,70 @@ const LoginPage: React.FC = () => {
                 {
                     email: email,
                     password: password,
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
                 }
             );
 
             console.log("Resposta do servidor:", response.data);
 
-            localStorage.setItem("authToken", response.data.token);
-            if (response.data.user && response.data.user.role) {
-                localStorage.setItem("userRole", response.data.user.role);
+            // Verificar se o login foi bem-sucedido
+            if (response.data.success && response.data.data) {
+                const userData = response.data.data;
+
+                // Salvar dados no localStorage
+                localStorage.setItem("authToken", userData.token);
+                localStorage.setItem("user", JSON.stringify(userData.user));
+
+                if (userData.user.role) {
+                    localStorage.setItem("userRole", userData.user.role);
+                }
+                if (userData.user.name) {
+                    localStorage.setItem("userName", userData.user.name);
+                }
+
+                alert("Login realizado com sucesso!");
+                navigate("/");
+            } else {
+                throw new Error(response.data.message || "Erro no login");
             }
-            if (response.data.user && response.data.user.name) {
-                localStorage.setItem("userName", response.data.user.name);
-            }
-            alert("Login realizado com sucesso!");
-            navigate("/");
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Erro no login:", error);
-            alert("Falha no login. Verifique suas credenciais.");
+
+            if (axios.isAxiosError(error)) {
+                // O servidor retornou um erro
+                if (error.response) {
+                    const status = error.response.status;
+                    const message =
+                        error.response.data?.message || "Erro no servidor";
+
+                    if (status === 419) {
+                        alert(
+                            "Erro de token CSRF. Verifique se o servidor está configurado corretamente."
+                        );
+                    } else if (status === 401) {
+                        alert(
+                            "Credenciais inválidas. Verifique seu email e senha."
+                        );
+                    } else {
+                        alert(`Erro ${status}: ${message}`);
+                    }
+                } else if (error.request) {
+                    // A requisição foi feita mas não houve resposta
+                    alert(
+                        "Não foi possível conectar ao servidor. Verifique se o backend está rodando."
+                    );
+                } else {
+                    // Algo aconteceu na configuração da requisição
+                    alert("Erro na requisição: " + error.message);
+                }
+            } else {
+                alert("Erro desconhecido: " + String(error));
+            }
         }
     };
 

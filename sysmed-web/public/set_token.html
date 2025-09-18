@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Configurar Token</title>
+    </head>
+    <body>
+        <h1>Configurando token...</h1>
+        <p>Redirecionando para o dashboard...</p>
+
+        <script>
+            // Adicionar token ao localStorage
+            localStorage.setItem(
+                "authToken",
+                "32|BOrxNMzGNGeRiBeYOr8BqGbatakwqSvPgUdDMOWl7127beda"
+            );
+            localStorage.setItem("userName", "Admin Sistema");
+            localStorage.setItem("userRole", "admin");
+            localStorage.setItem(
+                "user",
+                JSON.stringify({
+                    id: 1,
+                    name: "Admin Sistema",
+                    email: "admin@sysmed.com",
+                    role: "admin",
+                })
+            );
+
+            console.log(
+                "Token configurado:",
+                localStorage.getItem("authToken")
+            );
+
+            // Redirecionar para o dashboard após 1 segundo
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 1000);
+        </script>
+    </body>
+</html>

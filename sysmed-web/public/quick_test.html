@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Teste Rápido - Chrome</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 20px auto;
+                padding: 20px;
+            }
+            button {
+                padding: 10px 20px;
+                margin: 10px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            .result {
+                margin: 10px 0;
+                padding: 15px;
+                border-radius: 5px;
+            }
+            .success {
+                background: #d4edda;
+                color: #155724;
+            }
+            .error {
+                background: #f8d7da;
+                color: #721c24;
+            }
+            pre {
+                background: #f8f9fa;
+                padding: 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🚀 Teste Rápido - Dashboard SysMed</h1>
+
+        <div>
+            <button onclick="configurarAdmin()">
+                1. 🔐 Login Real (Admin)
+            </button>
+            <button onclick="testarDashboard()">2. 📊 Testar Dashboard</button>
+            <button onclick="abrirDashboard()">3. 🌐 Abrir Dashboard</button>
+            <button onclick="limparTudo()">🗑️ Limpar</button>
+        </div>
+
+        <div id="resultado"></div>
+
+        <script>
+            function log(message, type = "info") {
+                const div = document.createElement("div");
+                div.className = `result ${type}`;
+                div.innerHTML = message;
+                document.getElementById("resultado").appendChild(div);
+            }
+
+            async function configurarAdmin() {
+                log("🔄 Fazendo login real...", "info");
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/login",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                            },
+                            body: JSON.stringify({
+                                email: "admin@sysmed.com",
+                                password: "senha123",
+                            }),
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        const user = data.data.user;
+                        const token = data.data.token;
+
+                        // Salvar no localStorage
+                        localStorage.setItem("authToken", token);
+                        localStorage.setItem("userName", user.name);
+                        localStorage.setItem("userRole", user.role || "admin");
+                        localStorage.setItem("userEmail", user.email);
+                        localStorage.setItem("user", JSON.stringify(user));
+
+                        log(
+                            `✅ Login realizado com sucesso!<br>
+                             Usuário: ${user.name}<br>
+                             Token: ${token.substring(0, 25)}...`,
+                            "success"
+                        );
+                    } else {
+                        log(`❌ Erro no login: ${data.message}`, "error");
+                    }
+                } catch (error) {
+                    log(
+                        `❌ Erro de conexão: ${error.message}<br>
+                         💡 Verifique se o servidor Laravel está rodando`,
+                        "error"
+                    );
+                }
+            }
+
+            async function testarDashboard() {
+                const token = localStorage.getItem("authToken");
+
+                if (!token) {
+                    log("❌ Faça login primeiro!", "error");
+                    return;
+                }
+
+                log("🔄 Testando dashboard...");
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8000/api/dashboard/statistics",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    log(`📡 Status: ${response.status}`);
+
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        if (data.success) {
+                            log(
+                                `✅ Dashboard funcionando!<br>
+                            📈 Pacientes: ${data.data.overview.totalPatients}<br>
+                            📅 Consultas hoje: ${data.data.overview.appointmentsToday}<br>
+                            📊 Consultas semana: ${data.data.overview.appointmentsThisWeek}`,
+                                "success"
+                            );
+
+                            log(
+                                "<details><summary>Ver dados completos</summary><pre>" +
+                                    JSON.stringify(data, null, 2) +
+                                    "</pre></details>"
+                            );
+                        } else {
+                            log(
+                                "❌ Resposta indica erro: " +
+                                    (data.message || "Erro desconhecido"),
+                                "error"
+                            );
+                        }
+                    } else {
+                        const errorText = await response.text();
+                        log(
+                            `❌ Erro HTTP ${response.status}: ${response.statusText}<br>` +
+                                `Resposta: ${errorText}`,
+                            "error"
+                        );
+                    }
+                } catch (error) {
+                    log(
+                        `❌ Erro de conexão: ${error.message}<br>` +
+                            `💡 Verifique se o servidor Laravel está rodando em http://localhost:8000`,
+                        "error"
+                    );
+                }
+            }
+
+            function abrirDashboard() {
+                const url = "http://localhost:5175/";
+                window.open(url, "_blank");
+                log(`🌐 Dashboard aberto em nova aba: ${url}`, "success");
+            }
+
+            function limparTudo() {
+                localStorage.clear();
+                document.getElementById("resultado").innerHTML = "";
+                log("🗑️ Tudo limpo!", "success");
+            }
+
+            // Verificar status ao carregar
+            window.onload = function () {
+                const token = localStorage.getItem("authToken");
+                const user = localStorage.getItem("userName");
+
+                if (token && user) {
+                    log(
+                        `ℹ️ Usuário logado: ${user}<br>Token: ${token.substring(
+                            0,
+                            25
+                        )}...`,
+                        "info"
+                    );
+                } else {
+                    log(
+                        'ℹ️ Nenhum usuário logado. Clique em "Login Admin" para começar.',
+                        "info"
+                    );
+                }
+            };
+        </script>
+    </body>
+</html>
