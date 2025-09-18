@@ -4,7 +4,7 @@ import MainLayout from "./layouts/MainLayout.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import PatientsPage from "./pages/PatientsPage.tsx";
-import AgendaPage from "./pages/AgendaPage.tsx";
+import AppointmentsPage from "./pages/AppointmentsPage.tsx";
 import PatientDetailPage from "./pages/PatientDetailPage.tsx";
 import MedicalRecordsPage from "./pages/MedicalRecordsPage.tsx";
 import MedicalRecordDetailPage from "./pages/MedicalRecordDetailPage.tsx";
@@ -33,7 +33,7 @@ function App() {
                     path="/patients/:patientId"
                     element={<PatientDetailPage />}
                 />
-                <Route path="/schedule" element={<AgendaPage />} />
+                <Route path="/schedule" element={<AppointmentsPage />} />
                 <Route
                     path="/medical-records"
                     element={<MedicalRecordsPage />}

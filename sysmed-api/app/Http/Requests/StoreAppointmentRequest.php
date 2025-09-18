@@ -52,12 +52,12 @@ class StoreAppointmentRequest extends FormRequest
                     $end = Carbon::parse($value);
 
                     // Consulta deve ter pelo menos 15 minutos
-                    if ($end->diffInMinutes($start) < 15) {
+                    if ($start->diffInMinutes($end) < 15) {
                         $fail('A consulta deve ter pelo menos 15 minutos de duração.');
                     }
 
                     // Consulta não pode ter mais de 4 horas
-                    if ($end->diffInHours($start) > 4) {
+                    if ($start->diffInHours($end) > 4) {
                         $fail('A consulta não pode ter mais de 4 horas de duração.');
                     }
                 },

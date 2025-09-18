@@ -89,8 +89,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log("Iniciando submit do formulário...");
 
         if (!validateForm()) {
+            console.log("Formulário inválido:", formErrors);
             return;
         }
 
@@ -105,11 +107,17 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 valor: formData.valor ? Number(formData.valor) : undefined,
             };
 
+            console.log("Dados a serem enviados:", submitData);
+
             if (appointment && appointment.id) {
+                console.log("Atualizando consulta existente:", appointment.id);
                 await updateAppointment(appointment.id, submitData);
             } else {
+                console.log("Criando nova consulta");
                 await createAppointment(submitData);
             }
+
+            console.log("Consulta salva com sucesso!");
             onSubmit();
         } catch (err) {
             console.error("Erro ao salvar consulta:", err);

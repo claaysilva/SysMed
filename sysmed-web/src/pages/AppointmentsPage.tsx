@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Calendar, Clock, Users, Search, Plus, Filter } from "lucide-react";
 import { useAppointments } from "../hooks/useAppointments";
 import { format } from "date-fns";
@@ -8,13 +8,35 @@ import Modal from "../components/Modal";
 import AppointmentForm from "../components/AppointmentForm";
 import AppointmentCalendar from "../components/AppointmentCalendar";
 
+type AppointmentType = {
+    id: number;
+    patient_id: number;
+    user_id: number;
+    data_hora_inicio: string;
+    data_hora_fim: string;
+    status: "agendado" | "confirmado" | "realizado" | "cancelado" | "faltou";
+    observacoes?: string;
+    tipo_consulta?: "consulta" | "retorno" | "emergencia" | "exame";
+    valor?: number;
+    patient: {
+        id: number;
+        nome_completo: string;
+        telefone?: string;
+    };
+    user?: {
+        id: number;
+        name: string;
+    };
+};
+
 const AppointmentsPage: React.FC = () => {
     const { appointments, loading, error, fetchAppointments } =
         useAppointments();
 
     const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
     const [showForm, setShowForm] = useState(false);
-    const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+    const [selectedAppointment, setSelectedAppointment] =
+        useState<AppointmentType | null>(null);
     const [filters, setFilters] = useState({
         search: "",
         status: "",
@@ -30,23 +52,25 @@ const AppointmentsPage: React.FC = () => {
     }, [filters, fetchAppointments]);
 
     useEffect(() => {
-        loadAppointments();
-    }, [loadAppointments]);
+        // Carrega agendamentos na primeira montagem do componente
+        fetchAppointments();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Array vazio para executar apenas uma vez
 
     const handleCreateAppointment = () => {
         setSelectedAppointment(null);
         setShowForm(true);
     };
 
-    const handleEditAppointment = (appointment: any) => {
+    const handleEditAppointment = (appointment: AppointmentType) => {
         setSelectedAppointment(appointment);
         setShowForm(true);
     };
 
-    const handleFormSubmit = () => {
+    const handleFormSubmit = async () => {
         setShowForm(false);
         setSelectedAppointment(null);
-        loadAppointments();
+        await loadAppointments();
     };
 
     const handleFormCancel = () => {
@@ -98,10 +122,12 @@ const AppointmentsPage: React.FC = () => {
                         Gerencie as consultas e agendamentos
                     </p>
                 </div>
-                <Button onClick={handleCreateAppointment}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Consulta
-                </Button>
+                <div className="flex space-x-2">
+                    <Button onClick={handleCreateAppointment}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nova Consulta
+                    </Button>
+                </div>
             </div>
 
             {/* Estatísticas */}
@@ -366,9 +392,9 @@ const AppointmentsPage: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {appointment.valor
-                                                ? `R$ ${appointment.valor.toFixed(
-                                                      2
-                                                  )}`
+                                                ? `R$ ${Number(
+                                                      appointment.valor
+                                                  ).toFixed(2)}`
                                                 : "-"}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -418,7 +444,7 @@ const AppointmentsPage: React.FC = () => {
                     onClose={handleFormCancel}
                 >
                     <AppointmentForm
-                        appointment={selectedAppointment}
+                        appointment={selectedAppointment || undefined}
                         onSubmit={handleFormSubmit}
                         onCancel={handleFormCancel}
                     />

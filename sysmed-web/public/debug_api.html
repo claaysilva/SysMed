@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug SysMed API</title>
+</head>
+<body>
+    <h1>Debug SysMed API</h1>
+    <div id="results"></div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function log(message) {
+            console.log(message);
+            resultsDiv.innerHTML += '<p>' + JSON.stringify(message) + '</p>';
+        }
+        
+        async function testAPI() {
+            // Verificar token
+            const token = localStorage.getItem('authToken');
+            log('Token do localStorage: ' + (token ? 'Existe' : 'Não existe'));
+            
+            if (!token) {
+                log('Tentando fazer login primeiro...');
+                try {
+                    const loginResponse = await fetch('http://localhost:8000/api/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: 'admin@sysmed.com',
+                            password: 'admin123'
+                        })
+                    });
+                    
+                    const loginData = await loginResponse.json();
+                    log('Resposta do login: ' + JSON.stringify(loginData));
+                    
+                    if (loginData.success && loginData.data.token) {
+                        localStorage.setItem('authToken', loginData.data.token);
+                        log('Token salvo: ' + loginData.data.token);
+                    }
+                } catch (err) {
+                    log('Erro no login: ' + err.message);
+                }
+            }
+            
+            // Testar appointments
+            const currentToken = localStorage.getItem('authToken');
+            if (currentToken) {
+                try {
+                    log('Testando /api/appointments...');
+                    const response = await fetch('http://localhost:8000/api/appointments', {
+                        headers: {
+                            'Authorization': 'Bearer ' + currentToken,
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    
+                    log('Status da resposta: ' + response.status);
+                    
+                    const data = await response.json();
+                    log('Dados recebidos: ' + JSON.stringify(data));
+                    
+                } catch (err) {
+                    log('Erro na requisição: ' + err.message);
+                }
+            }
+        }
+        
+        // Executar teste ao carregar a página
+        testAPI();
+    </script>
+</body>
+</html>

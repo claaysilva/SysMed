@@ -35,9 +35,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
     templates = [],
     onSubmit,
     onCancel,
-    onExport,
     loading = false,
-    showExportOptions = false,
 }) => {
     const [formData, setFormData] = useState<FormData>({
         title: "",

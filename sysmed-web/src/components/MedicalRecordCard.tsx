@@ -1,7 +1,7 @@
 import React from "react";
 import Card from "./Card";
 import Badge from "./Badge";
-import StatusBadge from "./StatusBadge";
+import StatusBadge from "../components/StatusBadge";
 
 export interface MedicalRecord {
     id: number;

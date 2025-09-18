@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface Appointment {
     id: number;
@@ -73,52 +73,78 @@ export const useAppointments = () => {
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem("authToken");
+        console.log("Token encontrado:", token ? "Sim" : "Não");
         return {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            Accept: "application/json",
         };
     };
 
-    const fetchAppointments = async (filters: AppointmentFilters = {}) => {
-        try {
-            setLoading(true);
-            setError(null);
+    const fetchAppointments = useCallback(
+        async (filters: AppointmentFilters = {}) => {
+            try {
+                setLoading(true);
+                setError(null);
+                console.log(
+                    "Iniciando busca de agendamentos com filtros:",
+                    filters
+                );
 
-            const params = new URLSearchParams();
-            Object.entries(filters).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== "") {
-                    params.append(key, value.toString());
+                const params = new URLSearchParams();
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null && value !== "") {
+                        params.append(key, value.toString());
+                    }
+                });
+
+                const url = `http://localhost:8000/api/appointments${
+                    params.toString() ? `?${params.toString()}` : ""
+                }`;
+                console.log("URL da requisição:", url);
+
+                const response = await fetch(url, {
+                    headers: getAuthHeaders(),
+                });
+
+                console.log(
+                    "Resposta da API:",
+                    response.status,
+                    response.statusText
+                );
+
+                if (!response.ok) {
+                    throw new Error("Erro ao carregar consultas");
                 }
-            });
 
-            const url = `http://localhost:8000/api/appointments${
-                params.toString() ? `?${params.toString()}` : ""
-            }`;
-            const response = await fetch(url, {
-                headers: getAuthHeaders(),
-            });
+                const data = await response.json();
+                console.log("Dados recebidos:", data);
 
-            if (!response.ok) {
-                throw new Error("Erro ao carregar consultas");
+                if (data.success) {
+                    setAppointments(data.data);
+                    setPagination(data.pagination);
+                    console.log("Agendamentos carregados:", data.data.length);
+                } else {
+                    throw new Error(
+                        data.message || "Erro ao carregar consultas"
+                    );
+                }
+            } catch (err: unknown) {
+                const errorMessage =
+                    err instanceof Error ? err.message : "Erro desconhecido";
+                setError(errorMessage);
+                console.error("Erro ao buscar consultas:", err);
+                console.error(
+                    "Stack trace:",
+                    err instanceof Error ? err.stack : "N/A"
+                );
+                console.error("Tipo do erro:", typeof err);
+            } finally {
+                setLoading(false);
             }
-
-            const data = await response.json();
-
-            if (data.success) {
-                setAppointments(data.data);
-                setPagination(data.pagination);
-            } else {
-                throw new Error(data.message || "Erro ao carregar consultas");
-            }
-        } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
-            console.error("Erro ao buscar consultas:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
+        },
+        []
+    );
 
     const createAppointment = async (
         appointmentData: CreateAppointmentData
@@ -126,6 +152,7 @@ export const useAppointments = () => {
         try {
             setLoading(true);
             setError(null);
+            console.log("Criando agendamento:", appointmentData);
 
             const response = await fetch(
                 "http://localhost:8000/api/appointments",
@@ -136,7 +163,13 @@ export const useAppointments = () => {
                 }
             );
 
+            console.log(
+                "Resposta da criação:",
+                response.status,
+                response.statusText
+            );
             const data = await response.json();
+            console.log("Dados da resposta:", data);
 
             if (!response.ok) {
                 if (data.errors) {
@@ -150,6 +183,9 @@ export const useAppointments = () => {
 
             if (data.success) {
                 // Refresh appointments list
+                console.log(
+                    "Agendamento criado com sucesso, atualizando lista..."
+                );
                 await fetchAppointments();
                 return data.data;
             } else {
@@ -159,6 +195,7 @@ export const useAppointments = () => {
             const errorMessage =
                 err instanceof Error ? err.message : "Erro desconhecido";
             setError(errorMessage);
+            console.error("Erro detalhado:", err);
             throw err;
         } finally {
             setLoading(false);

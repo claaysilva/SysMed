@@ -28,14 +28,20 @@ class AuthController extends Controller
 
             // Retorna uma resposta de sucesso com o token e os dados do usuário
             return response()->json([
+                'success' => true,
                 'message' => 'Login bem-sucedido!',
-                'user' => $user,
-                'access_token' => $token,
+                'data' => [
+                    'user' => $user,
+                    'token' => $token,
+                ],
             ]);
         }
 
         // 4. Se a autenticação falhar...
         // Retorna um erro de "Não autorizado"
-        return response()->json(['message' => 'Credenciais inválidas'], 401);
+        return response()->json([
+            'success' => false,
+            'message' => 'Credenciais inválidas'
+        ], 401);
     }
 }
