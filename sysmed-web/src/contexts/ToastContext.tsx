@@ -1,23 +1,10 @@
-import React, { createContext, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import Toast from "../components/Toast";
 import type { ToastProps } from "../components/Toast";
+import { ToastContext } from "./toastContextBase";
 
-interface ToastContextProps {
-    showToast: (
-        message: string,
-        type: ToastProps["type"],
-        duration?: number
-    ) => void;
-    showSuccess: (message: string) => void;
-    showError: (message: string) => void;
-    showWarning: (message: string) => void;
-    showInfo: (message: string) => void;
-}
-
-export const ToastContext = createContext<ToastContextProps | undefined>(
-    undefined
-);
+// Contexto movido para toastContextBase.ts
 
 interface ToastProviderProps {
     children: ReactNode;

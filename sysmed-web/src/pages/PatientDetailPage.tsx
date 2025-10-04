@@ -1,21 +1,38 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Card from "../components/Card";
 import { StatusBadge } from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
+import PatientFormModal from "../components/PatientFormModal";
+import ConfirmationModal from "../components/ConfirmationModal";
+import { useNotification } from "../components/NotificationProvider";
 
 interface Patient {
     id: number;
     nome_completo: string;
     cpf: string;
+    formatted_cpf?: string;
     data_nascimento: string;
     telefone?: string;
+    formatted_phone?: string;
     email?: string;
     endereco?: string;
     status?: "ativo" | "inativo";
     created_at?: string;
     updated_at?: string;
+}
+
+// Resposta genérica da API
+interface ApiResponse<T> {
+    success?: boolean;
+    data?: T;
+    message?: string;
+}
+
+function isApiResponse<T>(val: unknown): val is ApiResponse<T> {
+    if (!val || typeof val !== "object") return false;
+    return Object.prototype.hasOwnProperty.call(val, "data");
 }
 
 interface RecordEntry {
@@ -35,7 +52,8 @@ interface Appointment {
 }
 
 const PatientDetailPage: React.FC = () => {
-    const { id: patientId } = useParams<{ id: string }>();
+    // A rota é "/patients/:patientId" em App.tsx, então precisamos extrair "patientId"
+    const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
     const [patient, setPatient] = useState<Patient | null>(null);
     const [entries, setEntries] = useState<RecordEntry[]>([]);
@@ -43,89 +61,127 @@ const PatientDetailPage: React.FC = () => {
     const [newEntryContent, setNewEntryContent] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [togglingStatus, setTogglingStatus] = useState(false);
     const [entryError, setEntryError] = useState<string>("");
     const [activeTab, setActiveTab] = useState<
         "info" | "prontuario" | "history" | "stats"
     >("info");
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [confirmToggleOpen, setConfirmToggleOpen] = useState(false);
+    const [nextStatus, setNextStatus] = useState<"ativo" | "inativo">("ativo");
 
     const userRole = localStorage.getItem("userRole");
+    const { showSuccess, showError } = useNotification();
 
-    useEffect(() => {
-        const fetchPatientData = async () => {
-            try {
-                setLoading(true);
-                const token = localStorage.getItem("authToken");
-                const headers = { Authorization: `Bearer ${token}` };
+    const fetchPatientData = useCallback(async () => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem("authToken");
+            const headers = { Authorization: `Bearer ${token}` };
 
-                // Buscar dados do paciente
-                const patientResponse = await axios.get(
-                    `http://localhost:8000/api/patients/${patientId}`,
-                    { headers }
-                );
+            // Buscar dados do paciente
+            const patientResponse = await axios.get(
+                `http://localhost:8000/api/patients/${patientId}`,
+                { headers }
+            );
+            // Backend retorna { success, data: {...} }
+            const patientPayload = patientResponse.data as
+                | ApiResponse<Patient>
+                | Patient;
+            const patientData: Patient | undefined = isApiResponse<Patient>(
+                patientPayload
+            )
+                ? patientPayload.data
+                : (patientPayload as Patient);
 
-                setPatient({
-                    ...patientResponse.data,
-                    status: Math.random() > 0.3 ? "ativo" : "inativo",
-                    telefone:
-                        patientResponse.data.telefone || "(11) 99999-9999",
-                    email: patientResponse.data.email || "paciente@email.com",
-                    endereco:
-                        patientResponse.data.endereco ||
-                        "Endereço não informado",
-                });
+            setPatient({
+                ...(patientData as Patient),
+                status: (patientData?.status as Patient["status"]) ?? "ativo",
+                telefone: patientData?.telefone || "(11) 99999-9999",
+                email: patientData?.email || "paciente@email.com",
+                endereco: patientData?.endereco || "Endereço não informado",
+            });
 
-                // Buscar entradas do prontuário
-                const entriesResponse = await axios.get(
-                    `http://localhost:8000/api/patients/${patientId}/record-entries`,
-                    { headers }
-                );
-                setEntries(entriesResponse.data);
+            // Buscar entradas do prontuário
+            const entriesResponse = await axios.get(
+                `http://localhost:8000/api/patients/${patientId}/record-entries`,
+                { headers }
+            );
+            const entriesPayload = entriesResponse.data as
+                | ApiResponse<RecordEntry[]>
+                | RecordEntry[];
+            const entriesList: RecordEntry[] = isApiResponse<RecordEntry[]>(
+                entriesPayload
+            )
+                ? entriesPayload.data ?? []
+                : (entriesPayload as RecordEntry[]);
+            setEntries(entriesList);
 
-                // Simular dados de consultas
-                const mockAppointments: Appointment[] = [
-                    {
-                        id: 1,
-                        data_consulta: "2025-09-15",
-                        hora_consulta: "14:30",
-                        medico: "Dr. João Silva",
-                        status: "realizada",
-                        observacoes:
-                            "Consulta de rotina - paciente apresentando melhora",
-                    },
-                    {
-                        id: 2,
-                        data_consulta: "2025-08-20",
-                        hora_consulta: "10:00",
-                        medico: "Dra. Maria Santos",
-                        status: "realizada",
-                        observacoes: "Exame preventivo",
-                    },
-                    {
-                        id: 3,
-                        data_consulta: "2025-09-25",
-                        hora_consulta: "16:00",
-                        medico: "Dr. João Silva",
-                        status: "agendada",
-                        observacoes: "Retorno - verificar resultados de exames",
-                    },
-                ];
+            // Simular dados de consultas
+            const mockAppointments: Appointment[] = [
+                {
+                    id: 1,
+                    data_consulta: "2025-09-15",
+                    hora_consulta: "14:30",
+                    medico: "Dr. João Silva",
+                    status: "realizada",
+                    observacoes:
+                        "Consulta de rotina - paciente apresentando melhora",
+                },
+                {
+                    id: 2,
+                    data_consulta: "2025-08-20",
+                    hora_consulta: "10:00",
+                    medico: "Dra. Maria Santos",
+                    status: "realizada",
+                    observacoes: "Exame preventivo",
+                },
+                {
+                    id: 3,
+                    data_consulta: "2025-09-25",
+                    hora_consulta: "16:00",
+                    medico: "Dr. João Silva",
+                    status: "agendada",
+                    observacoes: "Retorno - verificar resultados de exames",
+                },
+            ];
 
-                setAppointments(mockAppointments);
-            } catch (error) {
-                console.error("Erro ao buscar dados do paciente:", error);
-                navigate("/patients");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (patientId) {
-            fetchPatientData();
+            setAppointments(mockAppointments);
+        } catch (error) {
+            console.error("Erro ao buscar dados do paciente:", error);
+            navigate("/patients");
+        } finally {
+            setLoading(false);
         }
     }, [patientId, navigate]);
 
+    useEffect(() => {
+        if (!patientId) {
+            // Rota inválida ou sem parâmetro
+            setLoading(false);
+            navigate("/patients");
+            return;
+        }
+        fetchPatientData();
+    }, [patientId, navigate, fetchPatientData]);
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("pt-BR");
+    };
+
+    // Mapear status de consulta para valores aceitos pelo StatusBadge
+    const mapAppointmentStatus = (
+        s: "agendada" | "realizada" | "cancelada"
+    ): "agendado" | "concluido" | "cancelado" => {
+        switch (s) {
+            case "agendada":
+                return "agendado";
+            case "realizada":
+                return "concluido";
+            case "cancelada":
+            default:
+                return "cancelado";
+        }
     };
 
     const calculateAge = (birthDate: string) => {
@@ -142,6 +198,43 @@ const PatientDetailPage: React.FC = () => {
         }
 
         return age;
+    };
+
+    const performToggleStatus = async () => {
+        if (!patient) return;
+        setTogglingStatus(true);
+        try {
+            const token = localStorage.getItem("authToken");
+            await axios.put(
+                `http://localhost:8000/api/patients/${patient.id}`,
+                { status: nextStatus },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            await fetchPatientData();
+            showSuccess(
+                nextStatus === "ativo"
+                    ? "Paciente ativado"
+                    : "Paciente inativado",
+                `O paciente foi ${
+                    nextStatus === "ativo" ? "ativado" : "inativado"
+                } com sucesso.`
+            );
+        } catch {
+            showError(
+                "Erro ao alterar status",
+                "Não foi possível alterar o status do paciente."
+            );
+        } finally {
+            setTogglingStatus(false);
+            setConfirmToggleOpen(false);
+        }
+    };
+
+    const openConfirmToggle = () => {
+        if (!patient) return;
+        const target = patient.status === "ativo" ? "inativo" : "ativo";
+        setNextStatus(target);
+        setConfirmToggleOpen(true);
     };
 
     const handleSaveEntry = async () => {
@@ -291,9 +384,7 @@ const PatientDetailPage: React.FC = () => {
                 {userRole === "admin" && (
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                         <button
-                            onClick={() =>
-                                navigate(`/patients/${patientId}/edit`)
-                            }
+                            onClick={() => setShowEditModal(true)}
                             style={{
                                 padding: "0.75rem 1.5rem",
                                 backgroundColor: "#f59e0b",
@@ -309,22 +400,67 @@ const PatientDetailPage: React.FC = () => {
                             Editar Paciente
                         </button>
                         <button
-                            onClick={() =>
-                                navigate(
-                                    `/appointments/new?patient=${patientId}`
-                                )
-                            }
+                            onClick={openConfirmToggle}
+                            disabled={togglingStatus}
                             style={{
                                 padding: "0.75rem 1.5rem",
-                                backgroundColor: "#10b981",
+                                backgroundColor:
+                                    patient.status === "ativo"
+                                        ? "#ef4444"
+                                        : "#10b981",
                                 color: "white",
                                 border: "none",
                                 borderRadius: "8px",
                                 fontSize: "0.875rem",
                                 fontWeight: "500",
-                                cursor: "pointer",
+                                cursor: togglingStatus
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity: togglingStatus ? 0.8 : 1,
                                 transition: "all 0.2s",
                             }}
+                            title={
+                                patient.status === "ativo"
+                                    ? "Inativar paciente"
+                                    : "Ativar paciente"
+                            }
+                        >
+                            {togglingStatus
+                                ? "Salvando..."
+                                : patient.status === "ativo"
+                                ? "Inativar"
+                                : "Ativar"}
+                        </button>
+                        <button
+                            onClick={() =>
+                                navigate(`/schedule?patient=${patientId}`)
+                            }
+                            disabled={patient.status === "inativo"}
+                            style={{
+                                padding: "0.75rem 1.5rem",
+                                backgroundColor:
+                                    patient.status === "inativo"
+                                        ? "#9ca3af"
+                                        : "#10b981",
+                                color:
+                                    patient.status === "inativo"
+                                        ? "#f3f4f6"
+                                        : "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                fontSize: "0.875rem",
+                                fontWeight: "500",
+                                cursor:
+                                    patient.status === "inativo"
+                                        ? "not-allowed"
+                                        : "pointer",
+                                transition: "all 0.2s",
+                            }}
+                            title={
+                                patient.status === "inativo"
+                                    ? "Paciente inativo não pode agendar consultas"
+                                    : "Agendar nova consulta"
+                            }
                         >
                             Agendar Consulta
                         </button>
@@ -439,7 +575,7 @@ const PatientDetailPage: React.FC = () => {
                                     CPF
                                 </label>
                                 <span style={{ color: "#111827" }}>
-                                    {patient.cpf}
+                                    {patient.formatted_cpf || patient.cpf}
                                 </span>
                             </div>
                             <div>
@@ -495,7 +631,8 @@ const PatientDetailPage: React.FC = () => {
                                     Telefone
                                 </label>
                                 <span style={{ color: "#111827" }}>
-                                    {patient.telefone}
+                                    {patient.formatted_phone ||
+                                        patient.telefone}
                                 </span>
                             </div>
                             <div>
@@ -760,7 +897,9 @@ const PatientDetailPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <StatusBadge
-                                        status={appointment.status}
+                                        status={mapAppointmentStatus(
+                                            appointment.status
+                                        )}
                                         size="small"
                                     />
                                 </div>
@@ -966,6 +1105,40 @@ const PatientDetailPage: React.FC = () => {
                     </Card>
                 </div>
             )}
+
+            {/* Modal de edição de paciente */}
+            {showEditModal && patient && (
+                <PatientFormModal
+                    isOpen={showEditModal}
+                    patientToEdit={patient}
+                    onClose={() => setShowEditModal(false)}
+                    onSave={async () => {
+                        setShowEditModal(false);
+                        await fetchPatientData();
+                    }}
+                />
+            )}
+
+            {/* Confirmação para alternar status */}
+            <ConfirmationModal
+                isOpen={confirmToggleOpen}
+                title={
+                    nextStatus === "inativo"
+                        ? "Inativar paciente"
+                        : "Ativar paciente"
+                }
+                message={
+                    nextStatus === "inativo"
+                        ? "Tem certeza que deseja inativar este paciente? Ele não poderá agendar consultas enquanto estiver inativo."
+                        : "Deseja ativar este paciente? Ele poderá voltar a agendar consultas."
+                }
+                confirmText={nextStatus === "inativo" ? "Inativar" : "Ativar"}
+                cancelText="Cancelar"
+                type={nextStatus === "inativo" ? "warning" : "info"}
+                loading={togglingStatus}
+                onConfirm={performToggleStatus}
+                onCancel={() => setConfirmToggleOpen(false)}
+            />
         </div>
     );
 };

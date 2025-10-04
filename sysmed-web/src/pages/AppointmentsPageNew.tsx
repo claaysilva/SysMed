@@ -18,9 +18,11 @@ import {
     startOfWeek,
     addWeeks,
     subWeeks,
+    addMinutes,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Modal from "../components/Modal";
+import { useToast } from "../hooks/useToast";
 import AppointmentForm from "../components/AppointmentForm";
 
 type AppointmentType = {
@@ -47,6 +49,7 @@ type AppointmentType = {
 const AppointmentsPage: React.FC = () => {
     const { appointments, loading, error, fetchAppointments } =
         useAppointments();
+    const { showSuccess } = useToast();
 
     // Estados principais
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -54,14 +57,83 @@ const AppointmentsPage: React.FC = () => {
     const [showForm, setShowForm] = useState(false);
     const [selectedAppointment, setSelectedAppointment] =
         useState<AppointmentType | null>(null);
+    const [initialStart, setInitialStart] = useState<string | undefined>(
+        undefined
+    );
+    const [initialEnd, setInitialEnd] = useState<string | undefined>(undefined);
     const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
         fetchAppointments();
     }, [fetchAppointments]);
 
-    const handleCreateAppointment = () => {
+    const formatForInput = (date: Date) => format(date, "yyyy-LL-dd'T'HH:mm");
+
+    const clampToBusinessHours = (date: Date) => {
+        const start = new Date(date);
+        start.setHours(8, 0, 0, 0);
+        const end = new Date(date);
+        end.setHours(18, 0, 0, 0);
+        return { start, end };
+    };
+
+    const nextHalfHour = (date: Date) => {
+        const d = new Date(date);
+        d.setSeconds(0, 0);
+        const minutes = d.getMinutes();
+        const remainder = minutes % 30;
+        if (remainder !== 0) {
+            d.setMinutes(minutes + (30 - remainder));
+        }
+        return d;
+    };
+
+    const handleCreateAppointment = (opts?: { day?: Date; time?: string }) => {
         setSelectedAppointment(null);
+
+        let start: Date;
+        if (opts?.day && opts?.time) {
+            // Criado a partir do slot clicado
+            const [hh, mm] = opts.time.split(":").map((n) => parseInt(n, 10));
+            start = new Date(
+                opts.day.getFullYear(),
+                opts.day.getMonth(),
+                opts.day.getDate(),
+                hh,
+                mm,
+                0,
+                0
+            );
+            // Não permitir slots passados (defensivo)
+            const now = new Date();
+            if (
+                start.toDateString() < now.toDateString() ||
+                (start.toDateString() === now.toDateString() && start < now)
+            ) {
+                return;
+            }
+        } else {
+            // Botão Novo Agendamento: próxima meia hora dentro do expediente
+            let base = new Date();
+            // se hoje for domingo, usar segunda-feira como base
+            if (base.getDay() === 0) {
+                base = addDays(base, 1);
+            }
+            const { start: bhStart, end: bhEnd } = clampToBusinessHours(base);
+            if (base < bhStart) {
+                start = bhStart;
+            } else if (base > bhEnd) {
+                // próximo dia útil às 08:00
+                const tomorrow = addDays(base, 1);
+                start = clampToBusinessHours(tomorrow).start;
+            } else {
+                start = nextHalfHour(base);
+            }
+        }
+
+        const end = addMinutes(start, 30); // duração padrão: 30 min
+        setInitialStart(formatForInput(start));
+        setInitialEnd(formatForInput(end));
         setShowForm(true);
     };
 
@@ -74,6 +146,7 @@ const AppointmentsPage: React.FC = () => {
         setShowForm(false);
         setSelectedAppointment(null);
         await fetchAppointments();
+        showSuccess("Consulta agendada com sucesso!");
     };
 
     const handleFormCancel = () => {
@@ -92,14 +165,12 @@ const AppointmentsPage: React.FC = () => {
         return colors[status as keyof typeof colors] || "#6b7280";
     };
 
-    // Gerar horários do dia (8h às 18h, intervalos de 15min)
+    // Gerar horários do dia (8h às 18h, intervalos de 30min)
     const generateTimeSlots = () => {
-        const slots = [];
+        const slots: string[] = [];
         for (let hour = 8; hour < 18; hour++) {
             slots.push(`${hour.toString().padStart(2, "0")}:00`);
-            slots.push(`${hour.toString().padStart(2, "0")}:15`);
             slots.push(`${hour.toString().padStart(2, "0")}:30`);
-            slots.push(`${hour.toString().padStart(2, "0")}:45`);
         }
         return slots;
     };
@@ -109,7 +180,7 @@ const AppointmentsPage: React.FC = () => {
     // Gerar dias da semana
     const getWeekDays = () => {
         const start = startOfWeek(currentDate, { weekStartsOn: 0 }); // Domingo
-        const days = [];
+        const days: Date[] = [];
         for (let i = 0; i < 7; i++) {
             days.push(addDays(start, i));
         }
@@ -257,7 +328,8 @@ const AppointmentsPage: React.FC = () => {
                     {/* Botões de ação */}
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                         <button
-                            onClick={handleCreateAppointment}
+                            type="button"
+                            onClick={() => handleCreateAppointment()}
                             style={{
                                 display: "flex",
                                 alignItems: "center",
@@ -665,6 +737,19 @@ const AppointmentsPage: React.FC = () => {
                                                 );
                                             });
 
+                                        const [hh, mm] = time
+                                            .split(":")
+                                            .map((n) => parseInt(n, 10));
+                                        const slotDate = new Date(day);
+                                        slotDate.setHours(hh, mm, 0, 0);
+                                        const now = new Date();
+                                        const isPastSlot =
+                                            slotDate.toDateString() <
+                                                now.toDateString() ||
+                                            (slotDate.toDateString() ===
+                                                now.toDateString() &&
+                                                slotDate < now);
+
                                         return (
                                             <div
                                                 key={`${time}-${dayIndex}`}
@@ -674,13 +759,24 @@ const AppointmentsPage: React.FC = () => {
                                                         dayIndex < 6
                                                             ? "1px solid #e5e7eb"
                                                             : "none",
-                                                    cursor: "pointer",
+                                                    cursor: isPastSlot
+                                                        ? "not-allowed"
+                                                        : "pointer",
                                                     position: "relative",
+                                                    backgroundColor: isPastSlot
+                                                        ? "#f9fafb"
+                                                        : undefined,
                                                 }}
-                                                onClick={() =>
-                                                    !dayAppointments.length &&
-                                                    handleCreateAppointment()
-                                                }
+                                                onClick={() => {
+                                                    if (
+                                                        !dayAppointments.length &&
+                                                        !isPastSlot
+                                                    ) {
+                                                        handleCreateAppointment(
+                                                            { day, time }
+                                                        );
+                                                    }
+                                                }}
                                             >
                                                 {dayAppointments.map(
                                                     (appointment) => (
@@ -821,6 +917,19 @@ const AppointmentsPage: React.FC = () => {
                                     }
                                 );
 
+                                const [hh, mm] = time
+                                    .split(":")
+                                    .map((n) => parseInt(n, 10));
+                                const slotDate = new Date(currentDate);
+                                slotDate.setHours(hh, mm, 0, 0);
+                                const now = new Date();
+                                const isPastSlot =
+                                    slotDate.toDateString() <
+                                        now.toDateString() ||
+                                    (slotDate.toDateString() ===
+                                        now.toDateString() &&
+                                        slotDate < now);
+
                                 return (
                                     <div
                                         key={time}
@@ -828,12 +937,24 @@ const AppointmentsPage: React.FC = () => {
                                             height: "45px",
                                             borderBottom: "1px solid #f3f4f6",
                                             position: "relative",
-                                            cursor: "pointer",
+                                            cursor: isPastSlot
+                                                ? "not-allowed"
+                                                : "pointer",
+                                            backgroundColor: isPastSlot
+                                                ? "#f9fafb"
+                                                : undefined,
                                         }}
-                                        onClick={() =>
-                                            !dayAppointments.length &&
-                                            handleCreateAppointment()
-                                        }
+                                        onClick={() => {
+                                            if (
+                                                !dayAppointments.length &&
+                                                !isPastSlot
+                                            ) {
+                                                handleCreateAppointment({
+                                                    day: currentDate,
+                                                    time,
+                                                });
+                                            }
+                                        }}
                                     >
                                         {dayAppointments.map((appointment) => (
                                             <div
@@ -909,6 +1030,12 @@ const AppointmentsPage: React.FC = () => {
                 >
                     <AppointmentForm
                         appointment={selectedAppointment || undefined}
+                        initialStart={
+                            selectedAppointment ? undefined : initialStart
+                        }
+                        initialEnd={
+                            selectedAppointment ? undefined : initialEnd
+                        }
                         onSubmit={handleFormSubmit}
                         onCancel={handleFormCancel}
                     />

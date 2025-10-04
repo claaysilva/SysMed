@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
-import MainLayout from "./layouts/MainLayout.tsx";
+import MainLayoutNew from "./layouts/MainLayoutNew.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import PatientsPage from "./pages/PatientsPage.tsx";
@@ -10,19 +10,21 @@ import MedicalRecordsPage from "./pages/MedicalRecordsPageNew.tsx";
 import MedicalRecordDetailPage from "./pages/MedicalRecordDetailPage.tsx";
 import MedicalRecordFormPage from "./pages/MedicalRecordFormPage.tsx";
 import ReportsPage from "./pages/ReportsPage.tsx";
+import LoginQuickPage from "./pages/LoginQuickPage.tsx";
 
 function App() {
     return (
         <Routes>
             {/* A página de login é pública e não usa o layout principal */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/quick-login" element={<LoginQuickPage />} />
 
-            {/* Todas as rotas aqui dentro são PROTEGIDAS e usarão o MainLayout */}
+            {/* Todas as rotas aqui dentro são PROTEGIDAS e usarão o MainLayoutNew */}
             <Route
                 path="/"
                 element={
                     <ProtectedRoute>
-                        <MainLayout />
+                        <MainLayoutNew />
                     </ProtectedRoute>
                 }
             >

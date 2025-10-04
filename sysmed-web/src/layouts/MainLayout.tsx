@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, Link, useLocation } from "react-router-dom";
+import {
+    HomeIcon,
+    UsersIcon,
+    CalendarIcon,
+    DocumentTextIcon,
+    ChartPieIcon,
+    XMarkIcon,
+    Bars3Icon,
+    ArrowRightOnRectangleIcon,
+} from "@heroicons/react/24/outline";
+// Removed unused imports Sidebar and MobileHeader
 
 interface MenuItem {
     path: string;
     label: string;
-    icon: string;
+    icon: React.ComponentType<{ className?: string }>;
     description: string;
 }
 
@@ -14,12 +25,31 @@ const MainLayout: React.FC = () => {
     const [userName, setUserName] = useState<string>("");
     const [userRole, setUserRole] = useState<string>("");
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        const name = localStorage.getItem("userName") || "Usuário";
-        const role = localStorage.getItem("userRole") || "";
+        const name = localStorage.getItem("userName") || "Admin Sistema";
+        const role = localStorage.getItem("userRole") || "admin";
         setUserName(name);
         setUserRole(role);
+    }, []);
+
+    // Detectar se é mobile
+    useEffect(() => {
+        const checkIfMobile = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            if (mobile) {
+                setIsSidebarCollapsed(true);
+                setIsMobileMenuOpen(false);
+            }
+        };
+
+        checkIfMobile();
+        window.addEventListener("resize", checkIfMobile);
+
+        return () => window.removeEventListener("resize", checkIfMobile);
     }, []);
 
     const handleLogout = () => {
@@ -33,32 +63,32 @@ const MainLayout: React.FC = () => {
         {
             path: "/",
             label: "Dashboard",
-            icon: "📊",
+            icon: HomeIcon,
             description: "Visão geral do sistema",
         },
         {
             path: "/patients",
             label: "Pacientes",
-            icon: "👥",
+            icon: UsersIcon,
             description: "Cadastro e gestão de pacientes",
         },
         {
             path: "/schedule",
             label: "Agenda",
-            icon: "📅",
+            icon: CalendarIcon,
             description: "Agendamentos e consultas",
         },
         {
             path: "/medical-records",
             label: "Prontuários",
-            icon: "📋",
+            icon: DocumentTextIcon,
             description: "Prontuários médicos eletrônicos",
         },
         {
             path: "/reports",
             label: "Relatórios",
-            icon: "📈",
-            description: "Relatórios médicos, financeiros e estatísticos",
+            icon: ChartPieIcon,
+            description: "Relatórios e estatísticas",
         },
     ];
 
@@ -76,349 +106,249 @@ const MainLayout: React.FC = () => {
             nurse: "Recepcionista",
         }[userRole] || "Usuário";
 
+    const toggleMobileMenu = () => {
+        setIsMobileMenuOpen(!isMobileMenuOpen);
+    };
+
+    const closeMobileMenu = () => {
+        setIsMobileMenuOpen(false);
+    };
+
+    const currentMenuItem = menuItems.find((item) => isActive(item.path));
+
     return (
-        <div
-            style={{
-                display: "flex",
-                minHeight: "100vh",
-                background: "#f8fafc",
-            }}
-        >
+        <div className="flex min-h-screen bg-gray-50">
+            {/* Mobile menu button */}
+            {isMobile && (
+                <div className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                                <span className="text-white font-bold text-sm">
+                                    🏥
+                                </span>
+                            </div>
+                            <div>
+                                <span className="font-bold text-gray-900">
+                                    SysMed
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                    Gestão Médica
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={toggleMobileMenu}
+                            className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                            aria-label="Toggle menu"
+                        >
+                            {isMobileMenuOpen ? (
+                                <XMarkIcon className="h-6 w-6" />
+                            ) : (
+                                <Bars3Icon className="h-6 w-6" />
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Mobile overlay */}
+            {isMobile && isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 z-40 bg-black bg-opacity-50"
+                    onClick={closeMobileMenu}
+                />
+            )}
+
             {/* Sidebar */}
             <aside
-                style={{
-                    width: isSidebarCollapsed ? "80px" : "280px",
-                    background:
-                        "linear-gradient(180deg, #1e40af 0%, #1d4ed8 100%)",
-                    color: "white",
-                    display: "flex",
-                    flexDirection: "column",
-                    transition: "width 0.3s ease",
-                    position: "fixed",
-                    height: "100vh",
-                    left: 0,
-                    top: 0,
-                    boxShadow: "4px 0 20px rgba(0, 0, 0, 0.1)",
-                    zIndex: 1000,
-                }}
+                className={`
+                    ${isMobile ? "fixed" : "relative"}
+                    ${
+                        isMobile && !isMobileMenuOpen
+                            ? "-translate-x-full"
+                            : "translate-x-0"
+                    }
+                    ${isMobile ? "w-72" : isSidebarCollapsed ? "w-20" : "w-72"}
+                    bg-gradient-to-b from-blue-700 via-blue-800 to-blue-900 text-white
+                    flex flex-col transition-all duration-300 ease-in-out
+                    ${isMobile ? "h-screen z-50" : "h-screen sticky top-0"}
+                    shadow-xl border-r border-blue-600
+                `}
             >
                 {/* Logo e Header da Sidebar */}
                 <div
-                    style={{
-                        padding: isSidebarCollapsed
-                            ? "1.5rem 1rem"
-                            : "2rem 1.5rem",
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: isSidebarCollapsed
-                            ? "center"
-                            : "space-between",
-                    }}
+                    className={`${
+                        isMobile
+                            ? "pt-16 px-4 pb-4"
+                            : isSidebarCollapsed
+                            ? "p-4"
+                            : "p-6"
+                    } border-b border-blue-600/30`}
                 >
                     <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.75rem",
-                        }}
+                        className={`flex items-center ${
+                            isSidebarCollapsed && !isMobile
+                                ? "justify-center"
+                                : "justify-between"
+                        }`}
                     >
-                        <div
-                            style={{
-                                width: "40px",
-                                height: "40px",
-                                background: "rgba(255, 255, 255, 0.2)",
-                                borderRadius: "10px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "20px",
-                                fontWeight: "bold",
-                            }}
-                        >
-                            🏥
-                        </div>
-                        {!isSidebarCollapsed && (
-                            <div>
-                                <h1
-                                    style={{
-                                        margin: 0,
-                                        fontSize: "1.5rem",
-                                        fontWeight: "700",
-                                    }}
-                                >
-                                    SysMed
-                                </h1>
-                                <p
-                                    style={{
-                                        margin: 0,
-                                        fontSize: "0.75rem",
-                                        opacity: 0.8,
-                                    }}
-                                >
-                                    Gestão Médica
-                                </p>
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
+                                <span className="text-xl">🏥</span>
                             </div>
+                            {(!isSidebarCollapsed || isMobile) && (
+                                <div>
+                                    <h1 className="text-xl font-bold text-white">
+                                        SysMed
+                                    </h1>
+                                    <p className="text-xs text-blue-200">
+                                        Gestão Médica
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        {!isMobile && !isSidebarCollapsed && (
+                            <button
+                                onClick={() => setIsSidebarCollapsed(true)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                aria-label="Colapsar menu"
+                            >
+                                <XMarkIcon className="h-5 w-5" />
+                            </button>
                         )}
                     </div>
-                    {!isSidebarCollapsed && (
-                        <button
-                            onClick={() => setIsSidebarCollapsed(true)}
-                            style={{
-                                background: "none",
-                                border: "none",
-                                color: "white",
-                                cursor: "pointer",
-                                padding: "0.5rem",
-                                borderRadius: "6px",
-                                opacity: 0.7,
-                                transition: "opacity 0.2s",
-                            }}
-                            onMouseEnter={(e) =>
-                                (e.currentTarget.style.opacity = "1")
-                            }
-                            onMouseLeave={(e) =>
-                                (e.currentTarget.style.opacity = "0.7")
-                            }
-                        >
-                            ⬅️
-                        </button>
-                    )}
-                    {isSidebarCollapsed && (
-                        <button
-                            onClick={() => setIsSidebarCollapsed(false)}
-                            style={{
-                                border: "none",
-                                color: "white",
-                                cursor: "pointer",
-                                padding: "0.5rem",
-                                borderRadius: "6px",
-                                opacity: 0.7,
-                                transition: "opacity 0.2s",
-                                position: "absolute",
-                                top: "20px",
-                                right: "-15px",
-                                background: "#1e40af",
-                                boxShadow: "2px 2px 8px rgba(0,0,0,0.2)",
-                            }}
-                            onMouseEnter={(e) =>
-                                (e.currentTarget.style.opacity = "1")
-                            }
-                            onMouseLeave={(e) =>
-                                (e.currentTarget.style.opacity = "0.7")
-                            }
-                        >
-                            ➡️
-                        </button>
-                    )}
                 </div>
 
                 {/* Menu de Navegação */}
-                <nav style={{ flex: 1, padding: "1rem 0" }}>
-                    {menuItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "1rem",
-                                padding: isSidebarCollapsed
-                                    ? "1rem"
-                                    : "1rem 1.5rem",
-                                margin: isSidebarCollapsed
-                                    ? "0.5rem"
-                                    : "0.25rem 1rem",
-                                borderRadius: "12px",
-                                textDecoration: "none",
-                                color: "white",
-                                background: isActive(item.path)
-                                    ? "rgba(255, 255, 255, 0.15)"
-                                    : "transparent",
-                                border: isActive(item.path)
-                                    ? "1px solid rgba(255, 255, 255, 0.2)"
-                                    : "1px solid transparent",
-                                transition: "all 0.2s ease",
-                                justifyContent: isSidebarCollapsed
-                                    ? "center"
-                                    : "flex-start",
-                            }}
-                            onMouseEnter={(e) => {
-                                if (!isActive(item.path)) {
-                                    e.currentTarget.style.background =
-                                        "rgba(255, 255, 255, 0.08)";
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                if (!isActive(item.path)) {
-                                    e.currentTarget.style.background =
-                                        "transparent";
-                                }
-                            }}
-                        >
-                            <span
-                                style={{
-                                    fontSize: "1.25rem",
-                                    width: "24px",
-                                    textAlign: "center",
-                                }}
-                            >
-                                {item.icon}
-                            </span>
-                            {!isSidebarCollapsed && (
-                                <div>
-                                    <div
-                                        style={{
-                                            fontWeight: isActive(item.path)
-                                                ? "600"
-                                                : "500",
-                                            fontSize: "0.95rem",
-                                        }}
-                                    >
-                                        {item.label}
-                                    </div>
-                                    <div
-                                        style={{
-                                            fontSize: "0.75rem",
-                                            opacity: 0.8,
-                                            marginTop: "0.125rem",
-                                        }}
-                                    >
-                                        {item.description}
-                                    </div>
-                                </div>
-                            )}
-                        </Link>
-                    ))}
+                <nav className="flex-1 py-4 px-2">
+                    <div className="space-y-1">
+                        {menuItems.map((item) => {
+                            const IconComponent = item.icon;
+                            const active = isActive(item.path);
+
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    onClick={
+                                        isMobile ? closeMobileMenu : undefined
+                                    }
+                                    className={`
+                                        group flex items-center px-3 py-3 text-sm font-medium rounded-lg
+                                        transition-all duration-200 relative
+                                        ${
+                                            active
+                                                ? "bg-white/15 text-white shadow-sm border border-white/20"
+                                                : "text-blue-100 hover:bg-white/10 hover:text-white"
+                                        }
+                                        ${
+                                            isSidebarCollapsed && !isMobile
+                                                ? "justify-center"
+                                                : ""
+                                        }
+                                    `}
+                                >
+                                    {active && (
+                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full" />
+                                    )}
+                                    <IconComponent
+                                        className={`${
+                                            isSidebarCollapsed && !isMobile
+                                                ? "h-6 w-6"
+                                                : "h-5 w-5 mr-3"
+                                        } flex-shrink-0 transition-colors`}
+                                    />
+                                    {(!isSidebarCollapsed || isMobile) && (
+                                        <div className="flex-1 min-w-0">
+                                            <div
+                                                className={`font-medium truncate ${
+                                                    active ? "text-white" : ""
+                                                }`}
+                                            >
+                                                {item.label}
+                                            </div>
+                                            <div className="text-xs text-blue-200 mt-0.5 truncate">
+                                                {item.description}
+                                            </div>
+                                        </div>
+                                    )}
+                                </Link>
+                            );
+                        })}
+                    </div>
                 </nav>
 
                 {/* Informações do Usuário e Logout */}
                 <div
-                    style={{
-                        padding: isSidebarCollapsed ? "1rem" : "1.5rem",
-                        borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-                        background: "rgba(0, 0, 0, 0.1)",
-                    }}
+                    className={`${
+                        isMobile ? "p-4" : isSidebarCollapsed ? "p-4" : "p-6"
+                    } border-t border-blue-600/30 bg-black/20 backdrop-blur-sm`}
                 >
-                    {!isSidebarCollapsed && (
-                        <div style={{ marginBottom: "1rem" }}>
-                            <div
-                                style={{
-                                    fontSize: "0.9rem",
-                                    fontWeight: "600",
-                                }}
-                            >
+                    {(!isSidebarCollapsed || isMobile) && (
+                        <div className="mb-4 p-3 bg-white/10 rounded-lg border border-white/10">
+                            <div className="text-sm font-semibold text-white truncate">
                                 {userName}
                             </div>
-                            <div style={{ fontSize: "0.75rem", opacity: 0.8 }}>
+                            <div className="text-xs text-blue-200 truncate">
                                 {roleDisplayName}
                             </div>
                         </div>
                     )}
                     <button
                         onClick={handleLogout}
-                        style={{
-                            width: "100%",
-                            background: "rgba(255, 255, 255, 0.1)",
-                            color: "white",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            borderRadius: "8px",
-                            padding: isSidebarCollapsed
-                                ? "0.75rem"
-                                : "0.75rem 1rem",
-                            cursor: "pointer",
-                            fontWeight: "500",
-                            fontSize: "0.875rem",
-                            transition: "all 0.2s",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "0.5rem",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background =
-                                "rgba(255, 255, 255, 0.2)";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background =
-                                "rgba(255, 255, 255, 0.1)";
-                        }}
+                        className={`
+                            w-full bg-white/10 hover:bg-white/20 border border-white/20
+                            text-white rounded-lg py-2.5 px-3 transition-all duration-200
+                            flex items-center font-medium text-sm hover:shadow-sm
+                            ${
+                                isSidebarCollapsed && !isMobile
+                                    ? "justify-center"
+                                    : "justify-center space-x-2"
+                            }
+                        `}
                     >
-                        <span>🚪</span>
-                        {!isSidebarCollapsed && "Sair"}
+                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                        {(!isSidebarCollapsed || isMobile) && <span>Sair</span>}
                     </button>
                 </div>
+
+                {/* Botão de expandir sidebar (desktop) */}
+                {!isMobile && isSidebarCollapsed && (
+                    <button
+                        onClick={() => setIsSidebarCollapsed(false)}
+                        className="absolute -right-3 top-8 bg-blue-700 hover:bg-blue-600 text-white p-1.5 rounded-full shadow-lg transition-all duration-200 hover:shadow-xl"
+                        aria-label="Expandir menu"
+                    >
+                        <Bars3Icon className="h-4 w-4" />
+                    </button>
+                )}
             </aside>
 
             {/* Conteúdo Principal */}
             <main
-                style={{
-                    flex: 1,
-                    marginLeft: isSidebarCollapsed ? "80px" : "280px",
-                    transition: "margin-left 0.3s ease",
-                    background: "#f8fafc",
-                }}
+                className={`flex-1 flex flex-col min-h-screen ${
+                    isMobile ? "pt-16" : ""
+                }`}
             >
                 {/* Header do Conteúdo */}
-                <header
-                    style={{
-                        background: "white",
-                        padding: "1.5rem 2rem",
-                        borderBottom: "1px solid #e2e8f0",
-                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
-                    }}
-                >
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                        }}
-                    >
-                        <div>
-                            <h2
-                                style={{
-                                    margin: 0,
-                                    fontSize: "1.5rem",
-                                    fontWeight: "600",
-                                    color: "#1e293b",
-                                }}
-                            >
-                                {menuItems.find((item) => isActive(item.path))
-                                    ?.label || "SysMed"}
-                            </h2>
-                            <p
-                                style={{
-                                    margin: "0.25rem 0 0 0",
-                                    fontSize: "0.875rem",
-                                    color: "#64748b",
-                                }}
-                            >
-                                {menuItems.find((item) => isActive(item.path))
-                                    ?.description || "Sistema de Gestão Médica"}
+                <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">
+                                {currentMenuItem?.label || "Dashboard"}
+                            </h1>
+                            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">
+                                {currentMenuItem?.description ||
+                                    "Visão geral do sistema"}
                             </p>
                         </div>
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "1rem",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    padding: "0.5rem 1rem",
-                                    background: "#f1f5f9",
-                                    borderRadius: "8px",
-                                    fontSize: "0.875rem",
-                                    color: "#475569",
-                                }}
-                            >
+                        <div className="hidden sm:flex items-center space-x-4">
+                            <div className="bg-gray-50 px-3 py-2 rounded-lg text-xs sm:text-sm text-gray-600 border">
                                 {new Date().toLocaleDateString("pt-BR", {
-                                    weekday: "long",
-                                    year: "numeric",
-                                    month: "long",
+                                    weekday: "short",
                                     day: "numeric",
+                                    month: "short",
                                 })}
                             </div>
                         </div>
@@ -426,12 +356,7 @@ const MainLayout: React.FC = () => {
                 </header>
 
                 {/* Área de Conteúdo */}
-                <div
-                    style={{
-                        padding: "2rem",
-                        minHeight: "calc(100vh - 120px)",
-                    }}
-                >
+                <div className="flex-1 overflow-auto">
                     <Outlet />
                 </div>
             </main>

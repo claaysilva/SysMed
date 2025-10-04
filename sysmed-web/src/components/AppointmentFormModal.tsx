@@ -4,6 +4,7 @@ import axios from "axios";
 interface Patient {
     id: number;
     nome_completo: string;
+    status?: "ativo" | "inativo";
 }
 interface Doctor {
     id: number;
@@ -14,6 +15,7 @@ interface AppointmentFormModalProps {
     onClose: () => void;
     onSave: () => void;
     defaultDates?: { start: string; end: string };
+    selectedPatientId?: string;
 }
 
 const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
@@ -21,6 +23,7 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
     onClose,
     onSave,
     defaultDates,
+    selectedPatientId,
 }) => {
     const [isLoading, setIsLoading] = useState(false);
     const pacienteRef = React.useRef<HTMLSelectElement>(null);
@@ -37,6 +40,10 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
         }
         if (isOpen) {
             setErrorMsg(null);
+            // Pré-seleciona paciente vindo por parâmetro (se houver)
+            if (selectedPatientId) {
+                setPatientId(selectedPatientId);
+            }
             const token = localStorage.getItem("authToken");
             const headers = { Authorization: `Bearer ${token}` };
             axios
@@ -76,7 +83,12 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
                     }
                 });
         }
-    }, [isOpen]);
+    }, [isOpen, selectedPatientId]);
+
+    const selectedPatient = patients.find(
+        (p) => String(p.id) === String(patientId)
+    );
+    const isSelectedPatientInactive = selectedPatient?.status === "inativo";
 
     if (!isOpen) return null;
 
@@ -102,6 +114,12 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
             return;
         }
         try {
+            // Impedir agendamento para paciente inativo
+            if (isSelectedPatientInactive) {
+                setErrorMsg("Paciente inativo não pode agendar consultas.");
+                setIsLoading(false);
+                return;
+            }
             const token = localStorage.getItem("authToken");
             const appointmentData = {
                 patient_id: patientId,
@@ -226,6 +244,22 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
                         {errorMsg}
                     </div>
                 )}
+                {isSelectedPatientInactive && !errorMsg && (
+                    <div
+                        style={{
+                            color: "#7c2d12",
+                            marginBottom: "1rem",
+                            fontWeight: 500,
+                            padding: "0.75rem",
+                            background: "#fffbeb",
+                            borderRadius: 6,
+                            border: "1px solid #fde68a",
+                        }}
+                    >
+                        Paciente selecionado está inativo e não pode agendar
+                        consultas.
+                    </div>
+                )}
                 <form onSubmit={handleSubmit} autoComplete="off">
                     <div style={{ marginBottom: "1rem" }}>
                         <label
@@ -255,11 +289,64 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
                         >
                             <option value="">Selecione um paciente</option>
                             {patients.map((p) => (
-                                <option key={p.id} value={p.id}>
+                                <option
+                                    key={p.id}
+                                    value={p.id}
+                                    disabled={p.status === "inativo"}
+                                >
                                     {p.nome_completo}
+                                    {p.status === "inativo" ? " (inativo)" : ""}
                                 </option>
                             ))}
                         </select>
+                        {patientId && (
+                            <div
+                                aria-live="polite"
+                                style={{
+                                    marginTop: 8,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontSize: "0.85rem",
+                                        color: "#6b7280",
+                                    }}
+                                >
+                                    Status:
+                                </span>
+                                <span
+                                    style={{
+                                        display: "inline-block",
+                                        padding: "2px 8px",
+                                        borderRadius: 9999,
+                                        fontSize: "0.8rem",
+                                        fontWeight: 600,
+                                        color:
+                                            selectedPatient?.status ===
+                                            "inativo"
+                                                ? "#92400e"
+                                                : "#065f46",
+                                        background:
+                                            selectedPatient?.status ===
+                                            "inativo"
+                                                ? "#fffbeb"
+                                                : "#ecfdf5",
+                                        border:
+                                            selectedPatient?.status ===
+                                            "inativo"
+                                                ? "1px solid #fde68a"
+                                                : "1px solid #a7f3d0",
+                                    }}
+                                >
+                                    {selectedPatient?.status === "inativo"
+                                        ? "Inativo"
+                                        : "Ativo"}
+                                </span>
+                            </div>
+                        )}
                     </div>
                     <div style={{ marginBottom: "1rem" }}>
                         <label

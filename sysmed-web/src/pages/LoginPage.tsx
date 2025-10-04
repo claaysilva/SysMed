@@ -45,6 +45,12 @@ const LoginPage: React.FC = () => {
                 if (userData.user.name) {
                     localStorage.setItem("userName", userData.user.name);
                 }
+                if (
+                    userData.user.id !== undefined &&
+                    userData.user.id !== null
+                ) {
+                    localStorage.setItem("userId", String(userData.user.id));
+                }
 
                 alert("Login realizado com sucesso!");
                 navigate("/");

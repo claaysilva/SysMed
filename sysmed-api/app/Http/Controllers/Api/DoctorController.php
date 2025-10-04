@@ -9,7 +9,12 @@ class DoctorController extends Controller
 {
   public function index()
   {
-    // Filtra apenas usuários médicos (exemplo: role = 'medico' ou tipo = 'medico')
-    return User::where('role', 'medico')->get(['id', 'name']);
+    // Filtra apenas usuários médicos (ex.: role = 'medico')
+    $doctors = User::where('role', 'medico')->get(['id', 'name']);
+
+    return response()->json([
+      'success' => true,
+      'data' => $doctors,
+    ]);
   }
 }

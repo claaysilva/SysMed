@@ -59,6 +59,10 @@ class StorePatientRequest extends FormRequest
                 'min:5',
                 'max:500'
             ],
+            'status' => [
+                'nullable',
+                'in:ativo,inativo'
+            ],
         ];
     }
 
@@ -88,6 +92,8 @@ class StorePatientRequest extends FormRequest
 
             'endereco.min' => 'O endereço deve ter pelo menos 5 caracteres.',
             'endereco.max' => 'O endereço não pode ter mais de 500 caracteres.',
+
+            'status.in' => 'Status inválido. Use "ativo" ou "inativo".',
         ];
     }
 

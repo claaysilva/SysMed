@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import AppointmentFormModal from "../components/AppointmentFormModal";
 import axios from "axios";
 import FullCalendar from "@fullcalendar/react";
+import type { DateSpanApi } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { format, addMinutes } from "date-fns";
+import type { DateClickArg } from "@fullcalendar/interaction";
 
 interface CalendarEvent {
     id: string;
@@ -22,12 +26,8 @@ interface Appointment {
     data_hora_inicio: string;
     data_hora_fim: string;
     observacoes: string;
-    patient?: {
-        nome_completo: string;
-    };
-    user?: {
-        name: string;
-    };
+    patient?: { nome_completo: string };
+    user?: { name: string };
 }
 
 interface SelectInfo {
@@ -36,6 +36,7 @@ interface SelectInfo {
 }
 
 const SchedulePage: React.FC = () => {
+    const [searchParams] = useSearchParams();
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDates, setSelectedDates] = useState<{
@@ -52,18 +53,20 @@ const SchedulePage: React.FC = () => {
                     headers: { Authorization: `Bearer ${token}` },
                 }
             );
-            const formattedEvents = response.data.map((appt: Appointment) => ({
-                id: appt.id,
-                title: `Consulta - ${
-                    appt.patient?.nome_completo || "Paciente"
-                }`,
-                start: appt.data_hora_inicio,
-                end: appt.data_hora_fim,
-                extendedProps: {
-                    doctor: appt.user?.name || "Médico",
-                    notes: appt.observacoes,
-                },
-            }));
+            const formattedEvents: CalendarEvent[] = response.data.map(
+                (appt: Appointment) => ({
+                    id: appt.id,
+                    title: `Consulta - ${
+                        appt.patient?.nome_completo || "Paciente"
+                    }`,
+                    start: appt.data_hora_inicio,
+                    end: appt.data_hora_fim,
+                    extendedProps: {
+                        doctor: appt.user?.name || "Médico",
+                        notes: appt.observacoes,
+                    },
+                })
+            );
             setEvents(formattedEvents);
         } catch (error) {
             console.error("Erro ao buscar agendamentos:", error);
@@ -73,7 +76,71 @@ const SchedulePage: React.FC = () => {
     useEffect(() => {
         fetchAppointments();
     }, []);
-    // Função chamada ao selecionar horário no calendário
+
+    // Não permitir selecionar datas passadas e nem no modo mês (allDay)
+    const selectAllow = (span: DateSpanApi) => {
+        if (span.allDay) return false; // bloqueia seleção no mês
+        const now = new Date();
+        const start =
+            span.start instanceof Date ? span.start : new Date(span.start);
+        const startDay = new Date(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate()
+        );
+        const todayDay = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+        );
+        if (startDay.getTime() < todayDay.getTime()) return false;
+        if (startDay.getTime() === todayDay.getTime() && start < now)
+            return false;
+        return true;
+    };
+
+    // Clique simples em um slot (garantir mesmas regras de bloqueio)
+    const handleDateClick = (arg: DateClickArg) => {
+        const start: Date =
+            arg?.date instanceof Date ? arg.date : new Date(arg?.date);
+        if (Number.isNaN(start?.getTime())) return;
+        const now = new Date();
+        const startDay = new Date(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate()
+        );
+        const todayDay = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+        );
+        // bloquear passado
+        if (startDay.getTime() < todayDay.getTime()) return;
+        if (startDay.getTime() === todayDay.getTime() && start < now) return;
+        // domingo fechado
+        const dow = start.getDay();
+        if (dow === 0) return;
+        // horários de funcionamento
+        const h = start.getHours();
+        const m = start.getMinutes();
+        const minutes = h * 60 + m;
+        const isSat = dow === 6;
+        const open = 8 * 60; // 08:00
+        const close = isSat ? 11 * 60 : 18 * 60; // 11:00 aos sábados, 18:00 demais
+        // último início é 30 min antes do fechamento
+        const lastStart = close - 30;
+        if (minutes < open || minutes > lastStart) return;
+
+        const end = addMinutes(start, 30);
+        setSelectedDates({
+            start: start.toISOString(),
+            end: end.toISOString(),
+        });
+        setIsModalOpen(true);
+    };
+
+    // Ao selecionar horário
     const handleSelect = (selectInfo: SelectInfo) => {
         setSelectedDates({
             start: selectInfo.startStr,
@@ -120,19 +187,108 @@ const SchedulePage: React.FC = () => {
                     }}
                     selectable={true}
                     select={handleSelect}
+                    dateClick={handleDateClick}
+                    selectAllow={selectAllow}
+                    selectConstraint="businessHours"
                     height="600px"
                     eventColor="#1976d2"
                     eventBorderColor="#1565c0"
-                    dayHeaderClassNames="fc-custom-header"
+                    validRange={{
+                        // usar string yyyy-MM-dd para evitar ambiguidade de timezone
+                        start: format(new Date(), "yyyy-LL-dd"),
+                    }}
+                    dayHeaderClassNames={(arg) => {
+                        const d = arg.date as Date;
+                        const cell = new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate()
+                        );
+                        const today = new Date();
+                        const t0 = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            today.getDate()
+                        );
+                        const disabled = cell.getTime() < t0.getTime();
+                        return disabled
+                            ? ["fc-custom-header", "fc-day-disabled"]
+                            : ["fc-custom-header"];
+                    }}
+                    dayCellClassNames={(arg) => {
+                        // aplicar estilo de desabilitado para qualquer dia anterior a hoje
+                        const d = arg.date as Date;
+                        const cell = new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate()
+                        );
+                        const today = new Date();
+                        const t0 = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            today.getDate()
+                        );
+                        return cell.getTime() < t0.getTime()
+                            ? ["fc-day-disabled"]
+                            : [];
+                    }}
+                    dayCellDidMount={(arg) => {
+                        const d = arg.date as Date;
+                        const cell = new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate()
+                        );
+                        const today = new Date();
+                        const t0 = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            today.getDate()
+                        );
+                        if (cell.getTime() < t0.getTime()) {
+                            arg.el.setAttribute("aria-disabled", "true");
+                            (arg.el as HTMLElement).style.cursor =
+                                "not-allowed";
+                            (arg.el as HTMLElement).style.opacity = "0.6";
+                        }
+                    }}
+                    // aplicar mesma classe na coluna do timeGrid (estilo consistente)
+                    slotLaneClassNames={(arg) => {
+                        const d = arg.date as Date;
+                        const cell = new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate()
+                        );
+                        const today = new Date();
+                        const t0 = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            today.getDate()
+                        );
+                        return cell.getTime() < t0.getTime()
+                            ? ["fc-day-disabled"]
+                            : [];
+                    }}
+                    hiddenDays={[0]}
                     slotMinTime="07:00:00"
                     slotMaxTime="19:00:00"
                     allDaySlot={false}
                     slotDuration="00:30:00"
-                    businessHours={{
-                        daysOfWeek: [1, 2, 3, 4, 5],
-                        startTime: "08:00",
-                        endTime: "18:00",
-                    }}
+                    slotLabelInterval="00:30:00"
+                    businessHours={[
+                        {
+                            daysOfWeek: [1, 2, 3, 4, 5],
+                            startTime: "08:00",
+                            endTime: "18:00",
+                        },
+                        {
+                            daysOfWeek: [6],
+                            startTime: "08:00",
+                            endTime: "11:00",
+                        },
+                    ]}
                 />
             </div>
 
@@ -144,6 +300,7 @@ const SchedulePage: React.FC = () => {
                     fetchAppointments();
                 }}
                 defaultDates={selectedDates}
+                selectedPatientId={searchParams.get("patient") || undefined}
             />
         </div>
     );

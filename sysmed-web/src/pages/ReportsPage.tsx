@@ -1,738 +1,536 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useToast } from "../hooks/useToast";
-import ReportCard, { type Report } from "../components/ReportCard";
-import ReportForm from "../components/ReportForm";
-import LoadingSpinner from "../components/LoadingSpinner";
-import ConfirmationModal from "../components/ConfirmationModal";
+import React, { useState, useEffect } from "react";
+import {
+    UsersIcon,
+    CalendarIcon,
+    CurrencyDollarIcon,
+    ChartBarIcon,
+    DocumentTextIcon,
+    ArrowUpIcon,
+    ArrowDownIcon,
+    FunnelIcon,
+    ArrowPathIcon,
+} from "@heroicons/react/24/outline";
+import { useReports } from "../hooks/useReports";
 
-interface ReportTemplate {
-    id: number;
-    name: string;
-    type: "medical" | "financial" | "statistical";
-    category: string;
-    description?: string;
-    fields: string[];
-    default_filters?: Record<string, string | number | boolean>;
+interface ReportFilters {
+    start_date?: string;
+    end_date?: string;
 }
 
-interface ReportStats {
-    total_reports: number;
-    completed_reports: number;
-    generating_reports: number;
-    failed_reports: number;
-    reports_this_month: number;
-    storage_used: number;
-}
-
-interface ReportFormData {
-    template_id: number;
+interface StatCardProps {
     title: string;
-    format: string;
-    filters: Record<string, string | number | boolean>;
+    value: string | number;
+    change?: number;
+    changeType?: "positive" | "negative" | "neutral";
+    icon: React.ElementType;
+    color: string;
 }
 
-const ReportsPage: React.FC = () => {
-    const [reports, setReports] = useState<Report[]>([]);
-    const [templates, setTemplates] = useState<ReportTemplate[]>([]);
-    const [stats, setStats] = useState<ReportStats | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [typeFilter, setTypeFilter] = useState("");
-    const [statusFilter, setStatusFilter] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
+const StatCard: React.FC<StatCardProps> = ({
+    title,
+    value,
+    change,
+    changeType = "neutral",
+    icon: Icon,
+    color,
+}) => {
+    return (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+                <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                        {title}
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{value}</p>
+                    {change !== undefined && (
+                        <div
+                            className={`flex items-center mt-2 text-sm ${
+                                changeType === "positive"
+                                    ? "text-green-600"
+                                    : changeType === "negative"
+                                    ? "text-red-600"
+                                    : "text-gray-600"
+                            }`}
+                        >
+                            {changeType === "positive" && (
+                                <ArrowUpIcon className="w-4 h-4 mr-1" />
+                            )}
+                            {changeType === "negative" && (
+                                <ArrowDownIcon className="w-4 h-4 mr-1" />
+                            )}
+                            <span>{Math.abs(change)}% vs mês anterior</span>
+                        </div>
+                    )}
+                </div>
+                <div className={`p-3 rounded-lg ${color}`}>
+                    <Icon className="w-6 h-6 text-white" />
+                </div>
+            </div>
+        </div>
+    );
+};
 
-    const [showReportForm, setShowReportForm] = useState(false);
-    const [creatingReport, setCreatingReport] = useState(false);
+interface ChartCardProps {
+    title: string;
+    children: React.ReactNode;
+    className?: string;
+}
 
-    const [deleteModal, setDeleteModal] = useState<{
-        isOpen: boolean;
-        report: Report | null;
-    }>({
-        isOpen: false,
-        report: null,
-    });
-    const [deleting, setDeleting] = useState(false);
+const ChartCard: React.FC<ChartCardProps> = ({
+    title,
+    children,
+    className = "",
+}) => {
+    return (
+        <div
+            className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 ${className}`}
+        >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {title}
+            </h3>
+            {children}
+        </div>
+    );
+};
 
-    const { showSuccess, showError, showInfo } = useToast();
+interface FilterBarProps {
+    onFilterChange: (filters: ReportFilters) => void;
+    loading: boolean;
+}
 
-    const loadReports = useCallback(async () => {
-        try {
-            setLoading(true);
+const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange, loading }) => {
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
-            // Simular delay de API
-            await new Promise((resolve) => setTimeout(resolve, 800));
+    // Set default dates (current month)
+    useEffect(() => {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-            // Dados mockados para demonstração
-            const mockReports: Report[] = [
-                {
-                    id: 1,
-                    title: "Relatório de Consultas - Setembro 2025",
-                    type: "medical",
-                    category: "appointments",
-                    description: "Relatório detalhado de todas as consultas realizadas em setembro",
-                    status: "completed",
-                    format: "pdf",
-                    file_path: "reports/1_consultas_setembro.pdf",
-                    file_size: 1024000,
-                    file_size_formatted: "1 MB",
-                    generated_at: "2025-09-17T15:30:00Z",
-                    expires_at: "2025-10-17T15:30:00Z",
-                    user: { id: 1, name: "Dr. João Silva" },
-                    template: { id: 1, name: "Relatório de Consultas por Período" },
-                    created_at: "2025-09-17T15:25:00Z",
-                    updated_at: "2025-09-17T15:30:00Z",
-                    is_downloadable: true,
-                    is_expired: false,
-                },
-                {
-                    id: 2,
-                    title: "Estatísticas de Diagnósticos - Q3 2025",
-                    type: "statistical",
-                    category: "diagnoses",
-                    description: "Análise estatística dos diagnósticos mais frequentes no terceiro trimestre",
-                    status: "generating",
-                    format: "excel",
-                    user: { id: 1, name: "Dr. João Silva" },
-                    template: { id: 3, name: "Estatísticas de Diagnósticos" },
-                    created_at: "2025-09-17T16:00:00Z",
-                    updated_at: "2025-09-17T16:00:00Z",
-                },
-                {
-                    id: 3,
-                    title: "Relatório Financeiro - Agosto 2025",
-                    type: "financial",
-                    category: "revenue",
-                    description: "Análise financeira completa do mês de agosto",
-                    status: "failed",
-                    format: "pdf",
-                    user: { id: 1, name: "Dr. João Silva" },
-                    template: { id: 2, name: "Relatório Financeiro Mensal" },
-                    created_at: "2025-09-16T10:00:00Z",
-                    updated_at: "2025-09-16T10:05:00Z",
-                },
-                {
-                    id: 4,
-                    title: "Lista de Pacientes Ativos",
-                    type: "medical",
-                    category: "patients",
-                    status: "completed",
-                    format: "csv",
-                    file_path: "reports/4_pacientes_ativos.csv",
-                    file_size: 512000,
-                    file_size_formatted: "512 KB",
-                    generated_at: "2025-09-15T14:20:00Z",
-                    expires_at: "2025-10-15T14:20:00Z",
-                    user: { id: 1, name: "Dr. João Silva" },
-                    template: { id: 4, name: "Relatório de Pacientes" },
-                    created_at: "2025-09-15T14:15:00Z",
-                    updated_at: "2025-09-15T14:20:00Z",
-                    is_downloadable: true,
-                    is_expired: false,
-                },
-            ];
-
-            // Aplicar filtros
-            let filteredReports = mockReports;
-
-            if (searchTerm) {
-                filteredReports = filteredReports.filter(report =>
-                    report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    report.description?.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-            }
-
-            if (typeFilter) {
-                filteredReports = filteredReports.filter(report => report.type === typeFilter);
-            }
-
-            if (statusFilter) {
-                filteredReports = filteredReports.filter(report => report.status === statusFilter);
-            }
-
-            setReports(filteredReports);
-            setTotalPages(Math.ceil(filteredReports.length / 10));
-        } catch (error) {
-            console.error("Erro ao carregar relatórios:", error);
-            showError("Erro ao carregar relatórios");
-        } finally {
-            setLoading(false);
-        }
-    }, [searchTerm, typeFilter, statusFilter, showError]);
-
-    const loadTemplates = useCallback(async () => {
-        try {
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 300));
-
-            const mockTemplates: ReportTemplate[] = [
-                {
-                    id: 1,
-                    name: "Relatório de Consultas por Período",
-                    type: "medical",
-                    category: "appointments",
-                    description: "Relatório detalhado de todas as consultas realizadas em um período específico",
-                    fields: ["patient_name", "doctor_name", "consultation_date", "consultation_type"],
-                    default_filters: { date_from: "", date_to: "" },
-                },
-                {
-                    id: 2,
-                    name: "Relatório Financeiro Mensal",
-                    type: "financial",
-                    category: "revenue",
-                    description: "Análise financeira mensal com receitas, despesas e resultados",
-                    fields: ["month", "total_revenue", "total_expenses", "net_profit"],
-                    default_filters: { month: "", year: "" },
-                },
-                {
-                    id: 3,
-                    name: "Estatísticas de Diagnósticos",
-                    type: "statistical",
-                    category: "diagnoses",
-                    description: "Análise estatística dos diagnósticos mais frequentes",
-                    fields: ["diagnosis_code", "diagnosis_description", "frequency", "percentage"],
-                    default_filters: { date_from: "", date_to: "" },
-                },
-                {
-                    id: 4,
-                    name: "Relatório de Pacientes",
-                    type: "medical",
-                    category: "patients",
-                    description: "Lista detalhada de pacientes com histórico de consultas",
-                    fields: ["patient_name", "cpf", "birth_date", "last_consultation"],
-                    default_filters: { active_only: true },
-                },
-            ];
-
-            setTemplates(mockTemplates);
-        } catch (error) {
-            console.error("Erro ao carregar templates:", error);
-        }
+        setStartDate(firstDay.toISOString().split("T")[0]);
+        setEndDate(lastDay.toISOString().split("T")[0]);
     }, []);
 
-    const loadStats = useCallback(async () => {
-        try {
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 400));
-
-            const mockStats: ReportStats = {
-                total_reports: 12,
-                completed_reports: 8,
-                generating_reports: 2,
-                failed_reports: 2,
-                reports_this_month: 6,
-                storage_used: 15728640, // 15 MB
-            };
-
-            setStats(mockStats);
-        } catch (error) {
-            console.error("Erro ao carregar estatísticas:", error);
-        }
-    }, []);
-
-    const loadInitialData = useCallback(async () => {
-        try {
-            await Promise.all([
-                loadTemplates(),
-                loadStats(),
-                loadReports(),
-            ]);
-        } catch (error) {
-            console.error("Erro ao carregar dados:", error);
-            showError("Erro ao carregar dados dos relatórios");
-        }
-    }, [loadTemplates, loadStats, loadReports, showError]);
-
-    useEffect(() => {
-        loadInitialData();
-    }, [loadInitialData]);
-
-    useEffect(() => {
-        if (searchTerm || typeFilter || statusFilter) {
-            loadReports();
-        }
-    }, [searchTerm, typeFilter, statusFilter, loadReports]);
-
-    const handleCreateReport = async (data: ReportFormData) => {
-        try {
-            setCreatingReport(true);
-
-            console.log("Criando relatório:", data);
-
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-
-            showSuccess("Relatório iniciado com sucesso! Você será notificado quando estiver pronto.");
-            setShowReportForm(false);
-            
-            // Recarregar relatórios
-            await loadReports();
-            await loadStats();
-        } catch (error) {
-            console.error("Erro ao criar relatório:", error);
-            showError("Erro ao criar relatório");
-        } finally {
-            setCreatingReport(false);
-        }
-    };
-
-    const handleDownloadReport = (report: Report) => {
-        showInfo(`Baixando ${report.title}...`);
-        // Implementar download real
-    };
-
-    const handleViewReport = (report: Report) => {
-        showInfo(`Visualizando detalhes de ${report.title}`);
-        // Navegar para página de detalhes
-    };
-
-    const handleDeleteReport = (report: Report) => {
-        setDeleteModal({
-            isOpen: true,
-            report: report,
+    const handleApplyFilters = () => {
+        onFilterChange({
+            start_date: startDate,
+            end_date: endDate,
         });
     };
 
-    const confirmDelete = async () => {
-        if (!deleteModal.report) return;
+    const handleQuickFilter = (period: string) => {
+        const now = new Date();
+        let start: Date;
+        let end = new Date();
 
-        try {
-            setDeleting(true);
-
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            setReports(prev => prev.filter(r => r.id !== deleteModal.report!.id));
-            setDeleteModal({ isOpen: false, report: null });
-            showSuccess("Relatório excluído com sucesso!");
-            
-            // Recarregar estatísticas
-            await loadStats();
-        } catch (error) {
-            console.error("Erro ao excluir relatório:", error);
-            showError("Erro ao excluir relatório");
-        } finally {
-            setDeleting(false);
+        switch (period) {
+            case "today":
+                start = new Date();
+                break;
+            case "week":
+                start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case "month":
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                break;
+            case "quarter": {
+                const quarter = Math.floor(now.getMonth() / 3);
+                start = new Date(now.getFullYear(), quarter * 3, 1);
+                end = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+                break;
+            }
+            case "year":
+                start = new Date(now.getFullYear(), 0, 1);
+                end = new Date(now.getFullYear(), 11, 31);
+                break;
+            default:
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
         }
-    };
 
-    const clearFilters = () => {
-        setSearchTerm("");
-        setTypeFilter("");
-        setStatusFilter("");
-        setCurrentPage(1);
-    };
+        const startStr = start.toISOString().split("T")[0];
+        const endStr = end.toISOString().split("T")[0];
 
-    const formatBytes = (bytes: number): string => {
-        if (bytes === 0) return "0 B";
-        const k = 1024;
-        const sizes = ["B", "KB", "MB", "GB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+        setStartDate(startStr);
+        setEndDate(endStr);
+
+        onFilterChange({
+            start_date: startStr,
+            end_date: endStr,
+        });
     };
 
     return (
-        <div
-            style={{
-                padding: "2rem",
-                backgroundColor: "#f8fafc",
-                minHeight: "100vh",
-            }}
-        >
-            {/* Header */}
-            <div style={{ marginBottom: "2rem" }}>
-                <h1
-                    style={{
-                        fontSize: "2rem",
-                        fontWeight: "700",
-                        color: "#111827",
-                        margin: "0 0 0.5rem 0",
-                    }}
-                >
-                    Sistema de Relatórios
-                </h1>
-                <p
-                    style={{
-                        fontSize: "1rem",
-                        color: "#6b7280",
-                        margin: 0,
-                    }}
-                >
-                    Gere relatórios médicos, financeiros e estatísticos personalizados
-                </p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <FunnelIcon className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700">
+                        Filtros:
+                    </span>
+                </div>
+
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => handleQuickFilter("today")}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                        Hoje
+                    </button>
+                    <button
+                        onClick={() => handleQuickFilter("week")}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                        7 dias
+                    </button>
+                    <button
+                        onClick={() => handleQuickFilter("month")}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                        Este mês
+                    </button>
+                    <button
+                        onClick={() => handleQuickFilter("quarter")}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                        Trimestre
+                    </button>
+                    <button
+                        onClick={() => handleQuickFilter("year")}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                        Este ano
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-2 ml-auto">
+                    <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="text-gray-400">até</span>
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                        onClick={handleApplyFilters}
+                        disabled={loading}
+                        className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                    >
+                        {loading && (
+                            <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        )}
+                        Aplicar
+                    </button>
+                </div>
             </div>
+        </div>
+    );
+};
 
-            {/* Statistics */}
-            {stats && (
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                        gap: "1rem",
-                        marginBottom: "1.5rem",
-                    }}
-                >
-                    <div
-                        style={{
-                            backgroundColor: "white",
-                            padding: "1rem",
-                            borderRadius: "8px",
-                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                            textAlign: "center",
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                color: "#3b82f6",
-                            }}
-                        >
-                            {stats.total_reports}
-                        </div>
-                        <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
-                            Total de Relatórios
-                        </div>
-                    </div>
+const ReportsPage: React.FC = () => {
+    const { dashboardStats, loading, error, fetchDashboardStats, clearError } =
+        useReports();
 
-                    <div
-                        style={{
-                            backgroundColor: "white",
-                            padding: "1rem",
-                            borderRadius: "8px",
-                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                            textAlign: "center",
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                color: "#10b981",
-                            }}
-                        >
-                            {stats.completed_reports}
-                        </div>
-                        <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
-                            Concluídos
-                        </div>
-                    </div>
+    const [refreshing, setRefreshing] = useState(false);
 
-                    <div
-                        style={{
-                            backgroundColor: "white",
-                            padding: "1rem",
-                            borderRadius: "8px",
-                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                            textAlign: "center",
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                color: "#f59e0b",
-                            }}
-                        >
-                            {stats.generating_reports}
-                        </div>
-                        <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
-                            Em Processo
-                        </div>
-                    </div>
+    const handleFilterChange = async (filters: ReportFilters) => {
+        setRefreshing(true);
+        try {
+            await fetchDashboardStats(filters);
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
-                    <div
-                        style={{
-                            backgroundColor: "white",
-                            padding: "1rem",
-                            borderRadius: "8px",
-                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                            textAlign: "center",
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                color: "#8b5cf6",
-                            }}
-                        >
-                            {formatBytes(stats.storage_used)}
-                        </div>
-                        <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
-                            Armazenamento
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+        }).format(value || 0);
+    };
+
+    const formatNumber = (value: number) => {
+        return new Intl.NumberFormat("pt-BR").format(value || 0);
+    };
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-50 p-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex">
+                            <div className="ml-3">
+                                <h3 className="text-sm font-medium text-red-800">
+                                    Erro ao carregar relatórios
+                                </h3>
+                                <div className="mt-2 text-sm text-red-700">
+                                    <p>{error}</p>
+                                </div>
+                                <div className="mt-4">
+                                    <button
+                                        onClick={() => {
+                                            clearError();
+                                            fetchDashboardStats();
+                                        }}
+                                        className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200 transition-colors"
+                                    >
+                                        Tentar novamente
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
+        );
+    }
 
-            {/* Filters and Actions */}
-            <div
-                style={{
-                    backgroundColor: "white",
-                    padding: "1.5rem",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    marginBottom: "1.5rem",
-                }}
-            >
-                {/* Search and New Button */}
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "1rem",
-                    }}
-                >
-                    <div style={{ flex: 1, marginRight: "1rem" }}>
-                        <input
-                            type="text"
-                            placeholder="Buscar relatórios..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: "100%",
-                                padding: "0.75rem 1rem",
-                                border: "1px solid #d1d5db",
-                                borderRadius: "8px",
-                                fontSize: "0.875rem",
-                                outline: "none",
-                            }}
-                        />
+    if (loading && !dashboardStats) {
+        return (
+            <div className="min-h-screen bg-gray-50 p-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="animate-pulse">
+                        <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                            {[...Array(4)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                                >
+                                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                                    <div className="h-8 bg-gray-300 rounded w-1/2"></div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <button
-                        onClick={() => setShowReportForm(true)}
-                        style={{
-                            padding: "0.75rem 1.5rem",
-                            backgroundColor: "#3b82f6",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "8px",
-                            fontSize: "0.875rem",
-                            fontWeight: "500",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <span>+</span>
-                        Novo Relatório
-                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 p-6">
+            <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        Relatórios e Estatísticas
+                    </h1>
+                    <p className="text-gray-600">
+                        Acompanhe o desempenho da sua clínica em tempo real
+                    </p>
                 </div>
 
                 {/* Filters */}
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                        gap: "1rem",
-                    }}
-                >
-                    <select
-                        value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value)}
-                        style={{
-                            padding: "0.5rem",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "6px",
-                            fontSize: "0.875rem",
-                        }}
-                    >
-                        <option value="">Todos os tipos</option>
-                        <option value="medical">Médico</option>
-                        <option value="financial">Financeiro</option>
-                        <option value="statistical">Estatístico</option>
-                        <option value="custom">Personalizado</option>
-                    </select>
+                <FilterBar
+                    onFilterChange={handleFilterChange}
+                    loading={refreshing}
+                />
 
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        style={{
-                            padding: "0.5rem",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "6px",
-                            fontSize: "0.875rem",
-                        }}
-                    >
-                        <option value="">Todos os status</option>
-                        <option value="completed">Concluído</option>
-                        <option value="generating">Gerando</option>
-                        <option value="failed">Falhou</option>
-                        <option value="scheduled">Agendado</option>
-                    </select>
+                {dashboardStats && (
+                    <>
+                        {/* Overview Stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <StatCard
+                                title="Total de Pacientes"
+                                value={formatNumber(
+                                    dashboardStats.overview.totalPatients
+                                )}
+                                change={12}
+                                changeType="positive"
+                                icon={UsersIcon}
+                                color="bg-blue-500"
+                            />
+                            <StatCard
+                                title="Consultas Hoje"
+                                value={formatNumber(
+                                    dashboardStats.overview.appointmentsToday
+                                )}
+                                change={8}
+                                changeType="positive"
+                                icon={CalendarIcon}
+                                color="bg-green-500"
+                            />
+                            <StatCard
+                                title="Receita do Mês"
+                                value={formatCurrency(
+                                    dashboardStats.revenue.totalThisMonth
+                                )}
+                                change={15}
+                                changeType="positive"
+                                icon={CurrencyDollarIcon}
+                                color="bg-purple-500"
+                            />
+                            <StatCard
+                                title="Taxa de Comparecimento"
+                                value={`${dashboardStats.performance.attendanceRate}%`}
+                                change={5}
+                                changeType="positive"
+                                icon={ChartBarIcon}
+                                color="bg-indigo-500"
+                            />
+                        </div>
 
-                    <button
-                        onClick={clearFilters}
-                        style={{
-                            padding: "0.5rem 1rem",
-                            backgroundColor: "#f3f4f6",
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "6px",
-                            fontSize: "0.875rem",
-                            cursor: "pointer",
-                        }}
-                    >
-                        Limpar Filtros
-                    </button>
-                </div>
+                        {/* Secondary Stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <StatCard
+                                title="Novos Pacientes (Mês)"
+                                value={formatNumber(
+                                    dashboardStats.overview.newPatientsThisMonth
+                                )}
+                                icon={UsersIcon}
+                                color="bg-cyan-500"
+                            />
+                            <StatCard
+                                title="Consultas da Semana"
+                                value={formatNumber(
+                                    dashboardStats.overview.appointmentsThisWeek
+                                )}
+                                icon={CalendarIcon}
+                                color="bg-emerald-500"
+                            />
+                            <StatCard
+                                title="Prontuários Criados"
+                                value={formatNumber(
+                                    dashboardStats.overview.recordsThisMonth
+                                )}
+                                icon={DocumentTextIcon}
+                                color="bg-amber-500"
+                            />
+                        </div>
+
+                        {/* Charts Section */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            <ChartCard title="Consultas por Status">
+                                <div className="space-y-3">
+                                    {dashboardStats.appointments.byStatus.map(
+                                        (item, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center justify-between"
+                                            >
+                                                <span className="text-sm font-medium text-gray-700 capitalize">
+                                                    {item.status ||
+                                                        "Não informado"}
+                                                </span>
+                                                <span className="text-sm font-bold text-gray-900">
+                                                    {formatNumber(item.total)}
+                                                </span>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </ChartCard>
+
+                            <ChartCard title="Consultas por Tipo">
+                                <div className="space-y-3">
+                                    {dashboardStats.appointments.byType
+                                        .slice(0, 5)
+                                        .map((item, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center justify-between"
+                                            >
+                                                <span className="text-sm font-medium text-gray-700">
+                                                    {item.tipo_consulta ||
+                                                        "Não informado"}
+                                                </span>
+                                                <span className="text-sm font-bold text-gray-900">
+                                                    {formatNumber(item.total)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </ChartCard>
+                        </div>
+
+                        {/* Performance Section */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <ChartCard title="Produtividade por Médico">
+                                <div className="space-y-3">
+                                    {dashboardStats.performance.doctorProductivity
+                                        .slice(0, 5)
+                                        .map((doctor, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center justify-between"
+                                            >
+                                                <span className="text-sm font-medium text-gray-700">
+                                                    {doctor.name}
+                                                </span>
+                                                <span className="text-sm font-bold text-gray-900">
+                                                    {formatNumber(
+                                                        doctor.appointments
+                                                    )}{" "}
+                                                    consultas
+                                                </span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </ChartCard>
+
+                            <ChartCard title="Performance Geral">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-gray-700">
+                                            Taxa de Comparecimento
+                                        </span>
+                                        <span className="text-sm font-bold text-green-600">
+                                            {
+                                                dashboardStats.performance
+                                                    .attendanceRate
+                                            }
+                                            %
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-gray-700">
+                                            Tempo Médio de Consulta
+                                        </span>
+                                        <span className="text-sm font-bold text-gray-900">
+                                            {
+                                                dashboardStats.performance
+                                                    .avgConsultationTime
+                                            }{" "}
+                                            min
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-gray-700">
+                                            Valor Médio por Consulta
+                                        </span>
+                                        <span className="text-sm font-bold text-gray-900">
+                                            {formatCurrency(
+                                                dashboardStats.revenue
+                                                    .averagePerAppointment
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-gray-700">
+                                            Satisfação do Paciente
+                                        </span>
+                                        <span className="text-sm font-bold text-yellow-600">
+                                            {
+                                                dashboardStats.performance
+                                                    .patientSatisfaction
+                                            }
+                                            /5.0 ⭐
+                                        </span>
+                                    </div>
+                                </div>
+                            </ChartCard>
+                        </div>
+                    </>
+                )}
             </div>
-
-            {/* Report Form Modal */}
-            {showReportForm && (
-                <div
-                    style={{
-                        position: "fixed",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: "rgba(0, 0, 0, 0.5)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 9999,
-                        backdropFilter: "blur(4px)",
-                        padding: "1rem",
-                    }}
-                    onClick={() => !creatingReport && setShowReportForm(false)}
-                >
-                    <div
-                        style={{
-                            backgroundColor: "white",
-                            borderRadius: "12px",
-                            maxWidth: "800px",
-                            width: "100%",
-                            maxHeight: "90vh",
-                            overflow: "auto",
-                            boxShadow: "0 25px 50px rgba(0, 0, 0, 0.25)",
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <ReportForm
-                            templates={templates}
-                            onSubmit={handleCreateReport}
-                            onCancel={() => !creatingReport && setShowReportForm(false)}
-                            loading={creatingReport}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* Reports List */}
-            {loading ? (
-                <LoadingSpinner message="Carregando relatórios..." />
-            ) : reports.length === 0 ? (
-                <div
-                    style={{
-                        backgroundColor: "white",
-                        padding: "3rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                        textAlign: "center",
-                    }}
-                >
-                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>
-                        📊
-                    </div>
-                    <h3
-                        style={{
-                            fontSize: "1.125rem",
-                            fontWeight: "600",
-                            color: "#374151",
-                            margin: "0 0 0.5rem 0",
-                        }}
-                    >
-                        Nenhum relatório encontrado
-                    </h3>
-                    <p style={{ color: "#6b7280", margin: 0 }}>
-                        {searchTerm || typeFilter || statusFilter
-                            ? "Tente ajustar os filtros de busca"
-                            : "Comece criando seu primeiro relatório"}
-                    </p>
-                </div>
-            ) : (
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(400px, 1fr))",
-                        gap: "1.5rem",
-                    }}
-                >
-                    {reports.map((report) => (
-                        <ReportCard
-                            key={report.id}
-                            report={report}
-                            onDownload={handleDownloadReport}
-                            onDelete={handleDeleteReport}
-                            onView={handleViewReport}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        gap: "1rem",
-                        marginTop: "2rem",
-                    }}
-                >
-                    <button
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        style={{
-                            padding: "0.5rem 1rem",
-                            border: "1px solid #d1d5db",
-                            backgroundColor: "white",
-                            borderRadius: "6px",
-                            cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                            opacity: currentPage === 1 ? 0.5 : 1,
-                        }}
-                    >
-                        Anterior
-                    </button>
-
-                    <span style={{ color: "#6b7280", fontSize: "0.875rem" }}>
-                        Página {currentPage} de {totalPages}
-                    </span>
-
-                    <button
-                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        style={{
-                            padding: "0.5rem 1rem",
-                            border: "1px solid #d1d5db",
-                            backgroundColor: "white",
-                            borderRadius: "6px",
-                            cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-                            opacity: currentPage === totalPages ? 0.5 : 1,
-                        }}
-                    >
-                        Próxima
-                    </button>
-                </div>
-            )}
-
-            {/* Delete Confirmation Modal */}
-            <ConfirmationModal
-                isOpen={deleteModal.isOpen}
-                title="Excluir Relatório"
-                message={`Tem certeza que deseja excluir o relatório "${deleteModal.report?.title}"? Esta ação não pode ser desfeita.`}
-                type="danger"
-                confirmText="Excluir"
-                cancelText="Cancelar"
-                onConfirm={confirmDelete}
-                onCancel={() => setDeleteModal({ isOpen: false, report: null })}
-                loading={deleting}
-            />
         </div>
     );
 };

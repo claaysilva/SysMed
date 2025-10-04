@@ -9,6 +9,7 @@ interface Patient {
     data_nascimento: string;
     telefone?: string;
     endereco?: string;
+    status?: "ativo" | "inativo";
 }
 
 interface PatientFormModalProps {
@@ -32,6 +33,7 @@ const PatientFormModal: React.FC<PatientFormModalProps> = ({
     const [error, setError] = useState("");
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [showHelp, setShowHelp] = useState<Record<string, boolean>>({});
+    const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
 
     // Função para alternar a exibição de ajuda
     const toggleHelp = (field: string) => {
@@ -162,9 +164,17 @@ const PatientFormModal: React.FC<PatientFormModalProps> = ({
             // Se o modal abriu e recebeu um paciente para editar, preenchemos os campos.
             setNomeCompleto(patientToEdit.nome_completo);
             setDataNascimento(patientToEdit.data_nascimento);
-            setCpf(patientToEdit.cpf);
-            setTelefone(patientToEdit.telefone || "");
+            // Se vier em dígitos, aplicamos máscara; se vier já formatado, mantemos
+            const rawCpf = patientToEdit.cpf || "";
+            const digitsCpf = rawCpf.replace(/\D/g, "");
+            setCpf(digitsCpf.length === 11 ? formatCpf(digitsCpf) : rawCpf);
+            const rawPhone = patientToEdit.telefone || "";
+            const digitsPhone = rawPhone.replace(/\D/g, "");
+            setTelefone(
+                digitsPhone.length >= 10 ? formatPhone(digitsPhone) : rawPhone
+            );
             setEndereco(patientToEdit.endereco || "");
+            setStatus(patientToEdit.status ?? "ativo");
         } else {
             // Se não, limpamos os campos (para o modo de criação).
             setNomeCompleto("");
@@ -172,6 +182,7 @@ const PatientFormModal: React.FC<PatientFormModalProps> = ({
             setCpf("");
             setTelefone("");
             setEndereco("");
+            setStatus("ativo");
         }
         setError("");
         setFieldErrors({});
@@ -212,6 +223,7 @@ const PatientFormModal: React.FC<PatientFormModalProps> = ({
             cpf,
             telefone,
             endereco,
+            status,
         };
 
         try {
@@ -243,11 +255,17 @@ const PatientFormModal: React.FC<PatientFormModalProps> = ({
                         data?: {
                             errors?: Record<string, string[]>;
                             message?: string;
+                            success?: boolean;
                         };
+                        status?: number;
                     };
                 };
 
-                if (axiosError.response?.data?.errors) {
+                // Prioriza erros de validação (422), exibindo mensagens de campo e uma mensagem global amigável
+                if (
+                    axiosError.response?.status === 422 &&
+                    axiosError.response?.data?.errors
+                ) {
                     // Laravel validation errors
                     const validationErrors = axiosError.response.data.errors;
                     const newFieldErrors: Record<string, string> = {};
@@ -257,7 +275,20 @@ const PatientFormModal: React.FC<PatientFormModalProps> = ({
                     });
 
                     setFieldErrors(newFieldErrors);
+
+                    // Se houver erro específico de CPF duplicado, coloca uma mensagem global clara
+                    if (validationErrors.cpf) {
+                        setError(
+                            validationErrors.cpf[0] ||
+                                "Este CPF já está cadastrado no sistema."
+                        );
+                    } else {
+                        setError(
+                            "Há erros no formulário. Corrija os campos destacados e tente novamente."
+                        );
+                    }
                 } else if (axiosError.response?.data?.message) {
+                    // Mensagem vinda do backend (ex.: CPF duplicado tratado como message)
                     setError(axiosError.response.data.message);
                 } else {
                     setError(
@@ -346,6 +377,52 @@ const PatientFormModal: React.FC<PatientFormModalProps> = ({
                         {error}
                     </div>
                 )}
+
+                {/* Status */}
+                <div style={{ marginBottom: "1rem" }}>
+                    <label
+                        htmlFor="status"
+                        style={{
+                            display: "block",
+                            marginBottom: 6,
+                            fontWeight: "bold",
+                        }}
+                    >
+                        Status
+                    </label>
+                    <select
+                        id="status"
+                        value={status}
+                        onChange={(e) =>
+                            setStatus(e.target.value as "ativo" | "inativo")
+                        }
+                        style={{
+                            width: "100%",
+                            padding: "0.75rem",
+                            borderRadius: 6,
+                            border: fieldErrors.status
+                                ? "1px solid #f44336"
+                                : "1px solid #ddd",
+                            fontSize: "1rem",
+                            backgroundColor: "white",
+                            cursor: "pointer",
+                        }}
+                    >
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                    </select>
+                    {fieldErrors.status && (
+                        <div
+                            style={{
+                                color: "#f44336",
+                                fontSize: "0.875rem",
+                                marginTop: "0.25rem",
+                            }}
+                        >
+                            {fieldErrors.status}
+                        </div>
+                    )}
+                </div>
 
                 <form onSubmit={handleSubmit} autoComplete="off">
                     <div style={{ marginBottom: "1rem" }}>

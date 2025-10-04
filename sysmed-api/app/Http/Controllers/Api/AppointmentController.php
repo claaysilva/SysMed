@@ -117,6 +117,17 @@ class AppointmentController extends Controller
     try {
       $validatedData = $request->validated();
 
+      // Bloquear agendamento para paciente inativo
+      if (isset($validatedData['patient_id'])) {
+        $patient = Patient::find($validatedData['patient_id']);
+        if ($patient && isset($patient->status) && $patient->status === 'inativo') {
+          return response()->json([
+            'success' => false,
+            'message' => 'Paciente inativo não pode agendar consultas.'
+          ], 422);
+        }
+      }
+
       // Verificar conflitos de horário para o médico
       $conflicts = $this->checkTimeConflicts(
         $validatedData['user_id'],
@@ -259,10 +270,19 @@ class AppointmentController extends Controller
       $doctorId = $request->doctor_id;
       $date = Carbon::parse($request->date);
 
-      // Horários padrão de funcionamento (pode vir de configuração)
+      // Domingo fechado
+      if ($date->isSunday()) {
+        return response()->json([
+          'success' => true,
+          'data' => []
+        ]);
+      }
+
+      // Horários de funcionamento por dia
+      $isSaturday = $date->isSaturday();
       $workingHours = [
         'start' => '08:00',
-        'end' => '18:00',
+        'end' => $isSaturday ? '11:00' : '18:00',
         'lunch_start' => '12:00',
         'lunch_end' => '13:00',
         'slot_duration' => 30 // minutos
@@ -271,9 +291,20 @@ class AppointmentController extends Controller
       $slots = $this->generateTimeSlots($date, $workingHours);
       $busySlots = $this->getBusySlots($doctorId, $date);
 
+      // Filtrar ocupados
       $availableSlots = array_filter($slots, function ($slot) use ($busySlots) {
         return !in_array($slot, $busySlots);
       });
+
+      // Se a data é hoje, filtrar horários já passados
+      if ($date->isToday()) {
+        $now = Carbon::now();
+        $availableSlots = array_filter($availableSlots, function ($slot) use ($now, $date) {
+          [$hh, $mm] = array_map('intval', explode(':', $slot));
+          $slotDate = $date->copy()->setTime($hh, $mm);
+          return $slotDate->gte($now);
+        });
+      }
 
       return response()->json([
         'success' => true,
@@ -391,14 +422,15 @@ class AppointmentController extends Controller
     $start = Carbon::parse($startTime);
     $end = Carbon::parse($endTime);
 
-    // Verificar se é dia útil (pode ser configurável)
-    if ($start->isWeekend()) {
+    // Bloquear apenas domingo; sábado permitido com janela reduzida
+    if ($start->isSunday()) {
       return false;
     }
 
-    // Verificar horário (8h às 18h, pode ser configurável)
+    // Janelas: Seg–Sex 08:00–18:00, Sáb 08:00–11:00
+    $isSaturday = $start->isSaturday();
     $workStart = $start->copy()->setTime(8, 0);
-    $workEnd = $start->copy()->setTime(18, 0);
+    $workEnd = $start->copy()->setTime($isSaturday ? 11 : 18, 0);
 
     return $start->gte($workStart) && $end->lte($workEnd);
   }

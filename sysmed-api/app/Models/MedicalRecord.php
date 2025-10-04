@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
+use App\Traits\OptimizedQueries;
 
 class MedicalRecord extends Model
 {
-    use HasFactory;
+    use HasFactory, OptimizedQueries;
 
     protected $fillable = [
         'patient_id',
@@ -58,17 +59,17 @@ class MedicalRecord extends Model
     // Relacionamentos
     public function patient(): BelongsTo
     {
-        return $this->belongsTo(Patient::class);
+        return $this->belongsTo(Patient::class)->select(['id', 'nome_completo', 'cpf', 'data_nascimento']);
     }
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->select(['id', 'name', 'email']);
     }
 
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(Appointment::class);
+        return $this->belongsTo(Appointment::class)->select(['id', 'data_hora_inicio', 'status']);
     }
 
     // Accessors

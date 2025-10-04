@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Card, { StatsCard } from "../components/Card";
 import { StatusBadge } from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { Link } from "react-router-dom";
 
 interface DashboardStats {
     totalPacientes: number;
@@ -29,21 +30,20 @@ const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Simular carregamento de dados
         const loadDashboardData = async () => {
             try {
                 setLoading(true);
 
                 // Simular delay de API
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+                await new Promise((resolve) => setTimeout(resolve, 800));
 
-                // Dados mockados
+                // Dados mockados baseados na imagem
                 setStats({
-                    totalPacientes: 1247,
-                    pacientesAtivos: 892,
-                    agendamentosHoje: 23,
-                    agendamentosSemana: 156,
-                    faturamentoMes: 45780.5,
+                    totalPacientes: 3,
+                    pacientesAtivos: 2,
+                    agendamentosHoje: 0,
+                    agendamentosSemana: 2,
+                    faturamentoMes: 2450.0,
                     tendenciaPacientes: 12.5,
                     tendenciaAgendamentos: 8.3,
                 });
@@ -59,28 +59,7 @@ const Dashboard: React.FC = () => {
                     {
                         id: 2,
                         paciente: "João Carlos Oliveira",
-                        horario: "10:30",
-                        status: "concluido",
-                        tipo: "Retorno",
-                    },
-                    {
-                        id: 3,
-                        paciente: "Ana Paula Costa",
                         horario: "14:00",
-                        status: "agendado",
-                        tipo: "Primeira Consulta",
-                    },
-                    {
-                        id: 4,
-                        paciente: "Pedro Santos Lima",
-                        horario: "15:30",
-                        status: "cancelado",
-                        tipo: "Consulta Rotina",
-                    },
-                    {
-                        id: 5,
-                        paciente: "Carla Mendes Reis",
-                        horario: "16:00",
                         status: "agendado",
                         tipo: "Retorno",
                     },
@@ -99,14 +78,7 @@ const Dashboard: React.FC = () => {
 
     if (loading) {
         return (
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    height: "400px",
-                }}
-            >
+            <div className="flex justify-center items-center min-h-96">
                 <LoadingSpinner
                     size="large"
                     message="Carregando dashboard..."
@@ -116,48 +88,23 @@ const Dashboard: React.FC = () => {
     }
 
     return (
-        <div
-            style={{
-                padding: "2rem",
-                backgroundColor: "#f8fafc",
-                minHeight: "100vh",
-            }}
-        >
-            {/* Header */}
-            <div style={{ marginBottom: "2rem" }}>
-                <h1
-                    style={{
-                        fontSize: "2rem",
-                        fontWeight: "700",
-                        color: "#111827",
-                        margin: "0 0 0.5rem 0",
-                    }}
-                >
-                    Dashboard
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+            {/* Bem-vindo */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    Bem-vindo, Admin Sistema!{" "}
+                    <span className="text-gray-600">(Administrador)</span>
                 </h1>
-                <p
-                    style={{
-                        fontSize: "1rem",
-                        color: "#6b7280",
-                        margin: 0,
-                    }}
-                >
-                    Visão geral da sua clínica
+                <p className="text-gray-600">
+                    Aqui está um resumo da sua clínica hoje.
                 </p>
             </div>
 
             {/* Cards de Estatísticas */}
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: "1.5rem",
-                    marginBottom: "2rem",
-                }}
-            >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatsCard
                     title="Total de Pacientes"
-                    value={stats?.totalPacientes.toLocaleString("pt-BR") || "0"}
+                    value={stats?.totalPacientes.toString() || "0"}
                     subtitle={`${stats?.pacientesAtivos} ativos`}
                     icon="👥"
                     trend={{
@@ -169,8 +116,8 @@ const Dashboard: React.FC = () => {
                 />
 
                 <StatsCard
-                    title="Agendamentos Hoje"
-                    value={stats?.agendamentosHoje || 0}
+                    title="Consultas Hoje"
+                    value={stats?.agendamentosHoje.toString() || "0"}
                     subtitle={`${stats?.agendamentosSemana} esta semana`}
                     icon="📅"
                     trend={{
@@ -182,13 +129,26 @@ const Dashboard: React.FC = () => {
                 />
 
                 <StatsCard
+                    title="Prontuários"
+                    value="2"
+                    subtitle="Documentos ativos"
+                    icon="📋"
+                    trend={{
+                        value: 5.2,
+                        direction: "up",
+                        label: "novos esta semana",
+                    }}
+                    color="yellow"
+                />
+
+                <StatsCard
                     title="Faturamento Mensal"
                     value={`R$ ${
                         stats?.faturamentoMes.toLocaleString("pt-BR", {
                             minimumFractionDigits: 2,
                         }) || "0,00"
                     }`}
-                    subtitle="Receita do mês atual"
+                    subtitle="Receita do mês"
                     icon="💰"
                     trend={{
                         value: 15.2,
@@ -197,88 +157,31 @@ const Dashboard: React.FC = () => {
                     }}
                     color="purple"
                 />
-
-                <StatsCard
-                    title="Taxa de Ocupação"
-                    value="87%"
-                    subtitle="Média da semana"
-                    icon="📊"
-                    trend={{
-                        value: 3.1,
-                        direction: "up",
-                        label: "vs semana passada",
-                    }}
-                    color="yellow"
-                />
             </div>
 
-            {/* Conteúdo Principal */}
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
-                    gap: "2rem",
-                }}
-            >
+            {/* Conteúdo Principal - Grid Responsivo */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Agendamentos de Hoje */}
                 <Card
-                    title="Agendamentos de Hoje"
+                    title="Próximos Agendamentos"
                     subtitle={`${agendamentosRecentes.length} consultas programadas`}
                 >
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "1rem",
-                        }}
-                    >
+                    <div className="space-y-4">
                         {agendamentosRecentes.length > 0 ? (
                             agendamentosRecentes.map((agendamento) => (
                                 <div
                                     key={agendamento.id}
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        padding: "1rem",
-                                        backgroundColor: "#f9fafb",
-                                        borderRadius: "8px",
-                                        border: "1px solid #e5e7eb",
-                                    }}
+                                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                                 >
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: "1rem",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                fontWeight: "600",
-                                                color: "#1f2937",
-                                                fontSize: "1rem",
-                                                minWidth: "60px",
-                                            }}
-                                        >
+                                    <div className="flex items-center space-x-4">
+                                        <div className="text-sm font-bold text-blue-600 min-w-[60px]">
                                             {agendamento.horario}
                                         </div>
                                         <div>
-                                            <div
-                                                style={{
-                                                    fontWeight: "500",
-                                                    color: "#111827",
-                                                    marginBottom: "0.25rem",
-                                                }}
-                                            >
+                                            <div className="font-medium text-gray-900">
                                                 {agendamento.paciente}
                                             </div>
-                                            <div
-                                                style={{
-                                                    fontSize: "0.875rem",
-                                                    color: "#6b7280",
-                                                }}
-                                            >
+                                            <div className="text-sm text-gray-500">
                                                 {agendamento.tipo}
                                             </div>
                                         </div>
@@ -290,24 +193,19 @@ const Dashboard: React.FC = () => {
                                 </div>
                             ))
                         ) : (
-                            <div
-                                style={{
-                                    textAlign: "center",
-                                    padding: "2rem",
-                                    color: "#6b7280",
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontSize: "3rem",
-                                        marginBottom: "1rem",
-                                    }}
-                                >
-                                    📅
-                                </div>
+                            <div className="text-center py-8 text-gray-500">
+                                <div className="text-4xl mb-4">📅</div>
                                 <p>Nenhum agendamento para hoje</p>
                             </div>
                         )}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                        <Link
+                            to="/schedule"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                            Ver toda agenda →
+                        </Link>
                     </div>
                 </Card>
 
@@ -316,211 +214,153 @@ const Dashboard: React.FC = () => {
                     title="Ações Rápidas"
                     subtitle="Acesso rápido às funcionalidades"
                 >
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "1rem",
-                        }}
-                    >
-                        <button
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.75rem",
-                                padding: "1rem",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "8px",
-                                backgroundColor: "white",
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                fontSize: "0.875rem",
-                                fontWeight: "500",
-                                color: "#374151",
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                    "#f9fafb";
-                                e.currentTarget.style.borderColor = "#d1d5db";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "white";
-                                e.currentTarget.style.borderColor = "#e5e7eb";
-                            }}
+                    <div className="grid grid-cols-1 gap-3">
+                        <Link
+                            to="/patients"
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
                         >
-                            <span style={{ fontSize: "1.25rem" }}>👤</span>
-                            Novo Paciente
-                        </button>
+                            <span className="text-xl">👤</span>
+                            <div>
+                                <div className="font-medium text-gray-900 group-hover:text-blue-600">
+                                    Gerenciar Pacientes
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Cadastrar e editar pacientes
+                                </div>
+                            </div>
+                        </Link>
 
-                        <button
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.75rem",
-                                padding: "1rem",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "8px",
-                                backgroundColor: "white",
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                fontSize: "0.875rem",
-                                fontWeight: "500",
-                                color: "#374151",
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                    "#f9fafb";
-                                e.currentTarget.style.borderColor = "#d1d5db";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "white";
-                                e.currentTarget.style.borderColor = "#e5e7eb";
-                            }}
+                        <Link
+                            to="/schedule"
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
                         >
-                            <span style={{ fontSize: "1.25rem" }}>📅</span>
-                            Agendar Consulta
-                        </button>
+                            <span className="text-xl">📅</span>
+                            <div>
+                                <div className="font-medium text-gray-900 group-hover:text-blue-600">
+                                    Agendar Consulta
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Nova consulta ou retorno
+                                </div>
+                            </div>
+                        </Link>
 
-                        <button
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.75rem",
-                                padding: "1rem",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "8px",
-                                backgroundColor: "white",
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                fontSize: "0.875rem",
-                                fontWeight: "500",
-                                color: "#374151",
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                    "#f9fafb";
-                                e.currentTarget.style.borderColor = "#d1d5db";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "white";
-                                e.currentTarget.style.borderColor = "#e5e7eb";
-                            }}
+                        <Link
+                            to="/medical-records"
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
                         >
-                            <span style={{ fontSize: "1.25rem" }}>📋</span>
-                            Prontuário
-                        </button>
+                            <span className="text-xl">📋</span>
+                            <div>
+                                <div className="font-medium text-gray-900 group-hover:text-blue-600">
+                                    Prontuários
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Consultar histórico médico
+                                </div>
+                            </div>
+                        </Link>
 
-                        <button
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.75rem",
-                                padding: "1rem",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "8px",
-                                backgroundColor: "white",
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                fontSize: "0.875rem",
-                                fontWeight: "500",
-                                color: "#374151",
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                    "#f9fafb";
-                                e.currentTarget.style.borderColor = "#d1d5db";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "white";
-                                e.currentTarget.style.borderColor = "#e5e7eb";
-                            }}
+                        <Link
+                            to="/reports"
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
                         >
-                            <span style={{ fontSize: "1.25rem" }}>💰</span>
-                            Relatórios
-                        </button>
+                            <span className="text-xl">📊</span>
+                            <div>
+                                <div className="font-medium text-gray-900 group-hover:text-blue-600">
+                                    Relatórios
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Estatísticas e análises
+                                </div>
+                            </div>
+                        </Link>
                     </div>
                 </Card>
             </div>
 
-            {/* Avisos e Notificações */}
-            <div style={{ marginTop: "2rem" }}>
+            {/* Avisos e Status do Sistema */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Avisos */}
                 <Card
                     title="Avisos e Notificações"
-                    subtitle="Informações importantes da clínica"
+                    subtitle="Informações importantes"
                 >
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "1rem",
-                        }}
-                    >
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "flex-start",
-                                gap: "0.75rem",
-                                padding: "1rem",
-                                backgroundColor: "#fef3c7",
-                                borderRadius: "8px",
-                                border: "1px solid #f59e0b",
-                            }}
-                        >
-                            <span style={{ fontSize: "1.25rem" }}>⚠️</span>
+                    <div className="space-y-4">
+                        <div className="flex items-start space-x-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <span className="text-xl">⚠️</span>
                             <div>
-                                <div
-                                    style={{
-                                        fontWeight: "500",
-                                        color: "#92400e",
-                                        marginBottom: "0.25rem",
-                                    }}
-                                >
-                                    Lembrete: Consulta de emergência
+                                <div className="font-medium text-yellow-800">
+                                    Sistema funcionando normalmente
                                 </div>
-                                <div
-                                    style={{
-                                        fontSize: "0.875rem",
-                                        color: "#b45309",
-                                    }}
-                                >
-                                    João Silva precisa remarcar consulta urgente
-                                    para amanhã
+                                <div className="text-sm text-yellow-700">
+                                    Todas as funcionalidades estão operacionais
                                 </div>
                             </div>
                         </div>
 
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "flex-start",
-                                gap: "0.75rem",
-                                padding: "1rem",
-                                backgroundColor: "#dbeafe",
-                                borderRadius: "8px",
-                                border: "1px solid #3b82f6",
-                            }}
-                        >
-                            <span style={{ fontSize: "1.25rem" }}>ℹ️</span>
+                        <div className="flex items-start space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <span className="text-xl">ℹ️</span>
                             <div>
-                                <div
-                                    style={{
-                                        fontWeight: "500",
-                                        color: "#1e40af",
-                                        marginBottom: "0.25rem",
-                                    }}
-                                >
-                                    Sistema atualizado
+                                <div className="font-medium text-blue-800">
+                                    Performance otimizada
                                 </div>
-                                <div
-                                    style={{
-                                        fontSize: "0.875rem",
-                                        color: "#1d4ed8",
-                                    }}
-                                >
-                                    Nova versão do SysMed disponível com
-                                    melhorias de performance
+                                <div className="text-sm text-blue-700">
+                                    Sistema com cache e otimizações ativas
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Status do Sistema */}
+                <Card
+                    title="Status do Sistema"
+                    subtitle="Monitoramento em tempo real"
+                >
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                                <span className="text-sm font-medium">
+                                    Backend API
+                                </span>
+                            </div>
+                            <span className="text-sm text-green-600">
+                                Online
+                            </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                                <span className="text-sm font-medium">
+                                    Banco de Dados
+                                </span>
+                            </div>
+                            <span className="text-sm text-green-600">
+                                Conectado
+                            </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                                <span className="text-sm font-medium">
+                                    Cache Sistema
+                                </span>
+                            </div>
+                            <span className="text-sm text-green-600">
+                                Ativo
+                            </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                            <span className="text-sm font-medium text-gray-600">
+                                Último backup
+                            </span>
+                            <span className="text-sm text-gray-500">
+                                Hoje, 03:00
+                            </span>
                         </div>
                     </div>
                 </Card>

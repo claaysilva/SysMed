@@ -1,88 +1,83 @@
-# SysMed
+# 🏥 SysMed - Sistema de Gestão Médica
 
-Sistema de Gestão Médica - Uma aplicação completa para gerenciamento de pacientes e dados médicos.
+Sistema completo para gestão médica desenvolvido com Laravel (API) e React + TypeScript (Frontend), otimizado para produção com interface moderna e responsiva.
 
-## Estrutura do Projeto
+## 📚 Documentação Completa
 
-Este projeto é dividido em duas partes principais:
+Para informações detalhadas sobre instalação, configuração, funcionalidades e deploy, consulte:
 
--   **sysmed-api/**: API backend desenvolvida em Laravel, responsável pela lógica de negócio, autenticação e gerenciamento de dados.
--   **sysmed-web/**: Frontend desenvolvido em React com Vite, para a interface do usuário.
+**[📖 DOCUMENTAÇÃO_COMPLETA.md](./DOCUMENTACAO_COMPLETA.md)**
 
-## Tecnologias Utilizadas
+A documentação completa inclui:
 
-### Backend (API)
+-   🚀 Guia de instalação passo a passo
+-   🎨 Melhorias de UX/UI implementadas
+-   ⚡ Otimizações de performance
+-   🛠 Tecnologias utilizadas
+-   🔧 Configuração para produção
+-   📊 Métricas e benchmarks
 
--   Laravel Framework
--   Laravel Sanctum (para autenticação API)
--   MySQL (banco de dados)
--   PHP
+## 🌟 Visão Geral
 
-### Frontend (Web)
+O **SysMed** oferece:
 
--   React
--   TypeScript
--   Vite
--   CSS
+-   ✅ **Gestão Completa de Pacientes**
+-   ✅ **Sistema de Agendamento**
+-   ✅ **Prontuários Médicos Digitais**
+-   ✅ **Dashboard com Métricas**
+-   ✅ **Interface Responsiva** (Mobile/Desktop)
+-   ✅ **Performance Otimizada** (Cache + Lazy Loading)
+-   ✅ **Autenticação Segura** (Laravel Sanctum)
 
-## Como Executar
+## 🛠 Tecnologias
 
-### Pré-requisitos
+### Backend
 
--   PHP 8.1+
--   Composer
--   Node.js 16+
--   MySQL
--   Git
+-   **Laravel** + **MySQL** + **PHP 8.1+**
+-   **Cache Middleware** + **Query Optimization**
 
-### Instalação
+### Frontend
 
-1. Clone o repositório:
+-   **React** + **TypeScript** + **Vite**
+-   **Tailwind CSS** + **Heroicons**
 
-    ```bash
-    git clone https://github.com/claaysilva/SysMed.git
-    cd SysMed
-    ```
+## ⚡ Quick Start
 
-2. Instale as dependências da API:
+### 1. Backend (API)
 
-    ```bash
-    cd sysmed-api
-    composer install
-    cp ../.env.example .env
-    php artisan key:generate
-    ```
+```bash
+cd sysmed-api
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan serve
+```
 
-3. Configure o banco de dados no `.env` e execute as migrações:
+### 2. Frontend (Web)
 
-    ```bash
-    php artisan migrate
-    ```
+```bash
+cd sysmed-web
+npm install
+npm run dev
+```
 
-4. Instale as dependências do frontend:
+### 3. Acesso
 
-    ```bash
-    cd ../sysmed-web
-    npm install
-    ```
+-   **API**: http://localhost:8000
+-   **Web**: http://localhost:5173
 
-5. Execute o servidor da API:
+## 📋 Status do Projeto
 
-    ```bash
-    cd ../sysmed-api
-    php artisan serve
-    ```
+✅ **Interface moderna e responsiva**  
+✅ **Performance otimizada para produção**  
+✅ **Sistema de cache implementado**  
+✅ **Validação robusta frontend/backend**  
+✅ **Paleta de cores unificada**  
+✅ **Documentação completa**
 
-6. Execute o frontend:
-    ```bash
-    cd ../sysmed-web
-    npm run dev
-    ```
+**🚀 Sistema pronto para produção!**
 
-## Contribuição
+---
 
-Sinta-se à vontade para contribuir com melhorias, correções de bugs ou novas funcionalidades. Abra uma issue ou envie um pull request.
-
-## Licença
-
-Este projeto está sob a licença MIT.
+Para detalhes completos, consulte a **[DOCUMENTAÇÃO_COMPLETA.md](./DOCUMENTACAO_COMPLETA.md)**

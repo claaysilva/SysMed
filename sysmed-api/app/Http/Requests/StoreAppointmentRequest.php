@@ -32,9 +32,9 @@ class StoreAppointmentRequest extends FormRequest
                 function ($attribute, $value, $fail) {
                     $date = Carbon::parse($value);
 
-                    // Não permitir agendamento em finais de semana
-                    if ($date->isWeekend()) {
-                        $fail('Não é possível agendar consultas em finais de semana.');
+                    // Não permitir agendamento aos domingos (sábado é permitido pela manhã)
+                    if ($date->isSunday()) {
+                        $fail('Não é possível agendar consultas aos domingos.');
                     }
 
                     // Não permitir agendamento muito longe no futuro (6 meses)

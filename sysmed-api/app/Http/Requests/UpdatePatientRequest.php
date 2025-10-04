@@ -64,6 +64,11 @@ class UpdatePatientRequest extends FormRequest
                 'min:5',
                 'max:500'
             ],
+            'status' => [
+                'sometimes',
+                'required',
+                'in:ativo,inativo'
+            ],
         ];
     }
 
@@ -93,6 +98,9 @@ class UpdatePatientRequest extends FormRequest
 
             'endereco.min' => 'O endereço deve ter pelo menos 5 caracteres.',
             'endereco.max' => 'O endereço não pode ter mais de 500 caracteres.',
+
+            'status.in' => 'Status inválido. Use "ativo" ou "inativo".',
+            'status.required' => 'O status é obrigatório quando enviado.',
         ];
     }
 

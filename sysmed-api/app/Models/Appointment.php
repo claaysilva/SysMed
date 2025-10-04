@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
+use App\Traits\OptimizedQueries;
 
 class Appointment extends Model
 {
-  use HasFactory;
+  use HasFactory, OptimizedQueries;
 
   protected $fillable = [
     'patient_id',
@@ -43,12 +44,17 @@ class Appointment extends Model
 
   public function patient(): BelongsTo
   {
-    return $this->belongsTo(Patient::class);
+    return $this->belongsTo(Patient::class)->select(['id', 'nome_completo', 'cpf', 'telefone']);
   }
 
   public function user(): BelongsTo
   {
-    return $this->belongsTo(User::class);
+    return $this->belongsTo(User::class)->select(['id', 'name', 'email']);
+  }
+
+  public function notifications()
+  {
+    return $this->hasMany(Notification::class);
   }
 
   // Scopes

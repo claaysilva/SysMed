@@ -1,4 +1,7 @@
 import { useState, useCallback } from "react";
+import { apiRequest } from "../services/api";
+import { ApiErrorHandler } from "../utils/errorHandler";
+import type { ApiResponse } from "../utils/errorHandler";
 
 interface Appointment {
     id: number;
@@ -71,15 +74,15 @@ export const useAppointments = () => {
     const [error, setError] = useState<string | null>(null);
     const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem("authToken");
-        console.log("Token encontrado:", token ? "Sim" : "Não");
-        return {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        };
+    // Tipos de resposta da API
+    type ListAppointmentsResponse = ApiResponse<Appointment[]> & {
+        pagination?: PaginationInfo;
     };
+    type AppointmentItemResponse = ApiResponse<Appointment>;
+    type AvailableSlotsResponse = ApiResponse<string[]>;
+    type DoctorScheduleResponse = ApiResponse<Appointment[]>;
+
+    // Headers e token já são gerenciados por interceptors em api.ts
 
     const fetchAppointments = useCallback(
         async (filters: AppointmentFilters = {}) => {
@@ -91,54 +94,33 @@ export const useAppointments = () => {
                     filters
                 );
 
-                const params = new URLSearchParams();
-                Object.entries(filters).forEach(([key, value]) => {
-                    if (value !== undefined && value !== null && value !== "") {
-                        params.append(key, value.toString());
-                    }
-                });
-
-                const url = `http://localhost:8000/api/appointments${
-                    params.toString() ? `?${params.toString()}` : ""
-                }`;
-                console.log("URL da requisição:", url);
-
-                const response = await fetch(url, {
-                    headers: getAuthHeaders(),
-                });
-
-                console.log(
-                    "Resposta da API:",
-                    response.status,
-                    response.statusText
+                // Limpar filtros vazios
+                const activeFilters = Object.fromEntries(
+                    Object.entries(filters).filter(
+                        ([, v]) => v !== undefined && v !== null && v !== ""
+                    )
                 );
 
-                if (!response.ok) {
-                    throw new Error("Erro ao carregar consultas");
-                }
-
-                const data = await response.json();
+                const data = await apiRequest.get<ListAppointmentsResponse>(
+                    "/appointments",
+                    activeFilters
+                );
                 console.log("Dados recebidos:", data);
 
-                if (data.success) {
-                    setAppointments(data.data);
-                    setPagination(data.pagination);
-                    console.log("Agendamentos carregados:", data.data.length);
+                if (data?.success) {
+                    const items = Array.isArray(data.data) ? data.data : [];
+                    setAppointments(items);
+                    setPagination(data.pagination ?? null);
+                    console.log("Agendamentos carregados:", items.length);
                 } else {
                     throw new Error(
-                        data.message || "Erro ao carregar consultas"
+                        data?.message || "Erro ao carregar consultas"
                     );
                 }
             } catch (err: unknown) {
-                const errorMessage =
-                    err instanceof Error ? err.message : "Erro desconhecido";
-                setError(errorMessage);
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                setError(friendly || "Erro ao carregar consultas");
                 console.error("Erro ao buscar consultas:", err);
-                console.error(
-                    "Stack trace:",
-                    err instanceof Error ? err.stack : "N/A"
-                );
-                console.error("Tipo do erro:", typeof err);
             } finally {
                 setLoading(false);
             }
@@ -154,47 +136,26 @@ export const useAppointments = () => {
             setError(null);
             console.log("Criando agendamento:", appointmentData);
 
-            const response = await fetch(
-                "http://localhost:8000/api/appointments",
-                {
-                    method: "POST",
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(appointmentData),
-                }
+            const data = await apiRequest.post<AppointmentItemResponse>(
+                "/appointments",
+                appointmentData
             );
 
-            console.log(
-                "Resposta da criação:",
-                response.status,
-                response.statusText
-            );
-            const data = await response.json();
             console.log("Dados da resposta:", data);
 
-            if (!response.ok) {
-                if (data.errors) {
-                    const errorMessages = Object.values(data.errors)
-                        .flat()
-                        .join(", ");
-                    throw new Error(errorMessages);
-                }
-                throw new Error(data.message || "Erro ao criar consulta");
-            }
-
-            if (data.success) {
+            if (data?.success) {
                 // Refresh appointments list
                 console.log(
                     "Agendamento criado com sucesso, atualizando lista..."
                 );
                 await fetchAppointments();
-                return data.data;
+                return data.data as Appointment;
             } else {
-                throw new Error(data.message || "Erro ao criar consulta");
+                throw new Error(data?.message || "Erro ao criar consulta");
             }
         } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
+            const friendly = ApiErrorHandler.getErrorMessage(err);
+            setError(friendly || "Erro ao criar consulta");
             console.error("Erro detalhado:", err);
             throw err;
         } finally {
@@ -210,42 +171,27 @@ export const useAppointments = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(
-                `http://localhost:8000/api/appointments/${id}`,
-                {
-                    method: "PUT",
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(appointmentData),
-                }
+            const data = await apiRequest.put<AppointmentItemResponse>(
+                `/appointments/${id}`,
+                appointmentData
             );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.errors) {
-                    const errorMessages = Object.values(data.errors)
-                        .flat()
-                        .join(", ");
-                    throw new Error(errorMessages);
-                }
-                throw new Error(data.message || "Erro ao atualizar consulta");
-            }
-
-            if (data.success) {
+            if (data?.success) {
                 // Update local state
                 setAppointments((prev) =>
                     prev.map((appointment) =>
-                        appointment.id === id ? data.data : appointment
+                        appointment.id === id
+                            ? (data.data as Appointment) || appointment
+                            : appointment
                     )
                 );
-                return data.data;
+                return data.data as Appointment;
             } else {
-                throw new Error(data.message || "Erro ao atualizar consulta");
+                throw new Error(data?.message || "Erro ao atualizar consulta");
             }
         } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
+            const friendly = ApiErrorHandler.getErrorMessage(err);
+            setError(friendly || "Erro ao atualizar consulta");
             throw err;
         } finally {
             setLoading(false);
@@ -260,22 +206,12 @@ export const useAppointments = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(
-                `http://localhost:8000/api/appointments/${id}/status`,
-                {
-                    method: "PATCH",
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ status }),
-                }
+            const data = await apiRequest.patch<AppointmentItemResponse>(
+                `/appointments/${id}/status`,
+                { status }
             );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || "Erro ao atualizar status");
-            }
-
-            if (data.success) {
+            if (data?.success) {
                 // Update local state
                 setAppointments((prev) =>
                     prev.map((appointment) =>
@@ -284,14 +220,13 @@ export const useAppointments = () => {
                             : appointment
                     )
                 );
-                return data.data;
+                return data.data as Appointment;
             } else {
-                throw new Error(data.message || "Erro ao atualizar status");
+                throw new Error(data?.message || "Erro ao atualizar status");
             }
         } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
+            const friendly = ApiErrorHandler.getErrorMessage(err);
+            setError(friendly || "Erro ao atualizar status");
             throw err;
         } finally {
             setLoading(false);
@@ -303,21 +238,11 @@ export const useAppointments = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(
-                `http://localhost:8000/api/appointments/${id}`,
-                {
-                    method: "DELETE",
-                    headers: getAuthHeaders(),
-                }
+            const data = await apiRequest.delete<ApiResponse>(
+                `/appointments/${id}`
             );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || "Erro ao cancelar consulta");
-            }
-
-            if (data.success) {
+            if (data?.success) {
                 // Update local state
                 setAppointments((prev) =>
                     prev.map((appointment) =>
@@ -327,12 +252,11 @@ export const useAppointments = () => {
                     )
                 );
             } else {
-                throw new Error(data.message || "Erro ao cancelar consulta");
+                throw new Error(data?.message || "Erro ao cancelar consulta");
             }
         } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
+            const friendly = ApiErrorHandler.getErrorMessage(err);
+            setError(friendly || "Erro ao cancelar consulta");
             throw err;
         } finally {
             setLoading(false);
@@ -347,32 +271,21 @@ export const useAppointments = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(
-                `http://localhost:8000/api/appointments/available-slots?doctor_id=${doctorId}&date=${date}`,
-                {
-                    headers: getAuthHeaders(),
-                }
+            const data = await apiRequest.get<AvailableSlotsResponse>(
+                `/appointments/available-slots`,
+                { doctor_id: doctorId, date }
             );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.message || "Erro ao carregar horários disponíveis"
-                );
-            }
-
-            if (data.success) {
-                return data.data;
+            if (data?.success) {
+                return data.data as string[];
             } else {
                 throw new Error(
-                    data.message || "Erro ao carregar horários disponíveis"
+                    data?.message || "Erro ao carregar horários disponíveis"
                 );
             }
         } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
+            const friendly = ApiErrorHandler.getErrorMessage(err);
+            setError(friendly || "Erro ao carregar horários disponíveis");
             throw err;
         } finally {
             setLoading(false);
@@ -388,32 +301,21 @@ export const useAppointments = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(
-                `http://localhost:8000/api/appointments/doctor/${doctorId}/schedule?start_date=${startDate}&end_date=${endDate}`,
-                {
-                    headers: getAuthHeaders(),
-                }
+            const data = await apiRequest.get<DoctorScheduleResponse>(
+                `/appointments/doctor/${doctorId}/schedule`,
+                { start_date: startDate, end_date: endDate }
             );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.message || "Erro ao carregar agenda do médico"
-                );
-            }
-
-            if (data.success) {
-                return data.data;
+            if (data?.success) {
+                return data.data as Appointment[];
             } else {
                 throw new Error(
-                    data.message || "Erro ao carregar agenda do médico"
+                    data?.message || "Erro ao carregar agenda do médico"
                 );
             }
         } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
+            const friendly = ApiErrorHandler.getErrorMessage(err);
+            setError(friendly || "Erro ao carregar agenda do médico");
             throw err;
         } finally {
             setLoading(false);

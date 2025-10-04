@@ -1,48 +1,7 @@
-import React, { useState, useCallback, useEffect } from "react";
-import {
-    Calendar,
-    Clock,
-    Users,
-    Search,
-    Plus,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppointments } from "../hooks/useAppointments";
-import {
-    format,
-    addDays,
-    subDays,
-    startOfDay,
-    isSameDay,
-    parseISO,
-} from "date-fns";
-import { ptBR } from "date-fns/locale";
-import Button from "../components/Button";
-import Modal from "../components/Modal";
-import AppointmentForm from "../components/AppointmentForm";
-
-import React, { useState, useCallback, useEffect } from "react";
-import {
-    Calendar,
-    Clock,
-    Users,
-    Search,
-    Plus,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
-} from "lucide-react";
-import { useAppointments } from "../hooks/useAppointments";
-import {
-    format,
-    addDays,
-    subDays,
-    startOfDay,
-    isSameDay,
-    parseISO,
-} from "date-fns";
+import { format, addDays, subDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -80,26 +39,14 @@ const AppointmentsPage: React.FC = () => {
     const [selectedAppointment, setSelectedAppointment] =
         useState<AppointmentType | null>(null);
 
-    // Estados de filtros
-    const [filters, setFilters] = useState({
-        search: "",
-        status: "",
-        date: "",
-        doctor_id: "",
-    });
-
-    const loadAppointments = useCallback(() => {
-        const activeFilters = Object.fromEntries(
-            Object.entries(filters).filter(([, value]) => value !== "")
-        );
-        fetchAppointments(activeFilters);
-    }, [filters, fetchAppointments]);
+    // Carrega consultas iniciais
 
     useEffect(() => {
         fetchAppointments();
     }, [fetchAppointments]);
 
     const handleCreateAppointment = () => {
+        console.log("[AppointmentsPage] Abrindo modal de novo agendamento");
         setSelectedAppointment(null);
         setShowForm(true);
     };
@@ -112,7 +59,7 @@ const AppointmentsPage: React.FC = () => {
     const handleFormSubmit = async () => {
         setShowForm(false);
         setSelectedAppointment(null);
-        await loadAppointments();
+        await fetchAppointments();
     };
 
     const handleFormCancel = () => {
@@ -131,16 +78,7 @@ const AppointmentsPage: React.FC = () => {
         return colors[status as keyof typeof colors] || "#6b7280";
     };
 
-    const getStatusLabel = (status: string) => {
-        const labels = {
-            agendado: "Agendado",
-            confirmado: "Confirmado",
-            realizado: "Realizado",
-            cancelado: "Cancelado",
-            faltou: "Faltou",
-        };
-        return labels[status as keyof typeof labels] || status;
-    };
+    // Label auxiliar (não utilizado atualmente)
 
     // Gerar horários do dia (8h às 18h, intervalos de 30min)
     const generateTimeSlots = () => {
@@ -233,11 +171,9 @@ const AppointmentsPage: React.FC = () => {
                     </h1>
                     <Button
                         onClick={handleCreateAppointment}
-                        style={{
-                            backgroundColor: "#2563eb",
-                            padding: "0.5rem 1rem",
-                            fontSize: "0.875rem",
-                        }}
+                        variant="primary"
+                        size="md"
+                        className="bg-blue-600 hover:bg-blue-700"
                     >
                         <Plus size={16} style={{ marginRight: "0.5rem" }} />
                         Novo Agendamento
@@ -449,7 +385,7 @@ const AppointmentsPage: React.FC = () => {
                                 {format(currentDate, "EEEE", { locale: ptBR })}
                             </div>
 
-                            {timeSlots.map((time, index) => {
+                            {timeSlots.map((time) => {
                                 const appointment = todayAppointments.find(
                                     (apt) => {
                                         const aptTime = format(

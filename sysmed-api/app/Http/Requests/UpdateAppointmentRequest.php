@@ -37,8 +37,9 @@ class UpdateAppointmentRequest extends FormRequest
                         $fail('Não é possível alterar horário de consultas já realizadas ou canceladas.');
                     }
 
-                    if ($date->isWeekend()) {
-                        $fail('Não é possível agendar consultas em finais de semana.');
+                    // Bloquear apenas domingo (sábado permitido)
+                    if ($date->isSunday()) {
+                        $fail('Não é possível agendar consultas aos domingos.');
                     }
                 },
             ],

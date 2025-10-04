@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useCallback } from "react";
+import axios, { AxiosError } from "axios";
 import PatientFormModal from "../components/PatientFormModal";
 import Card from "../components/Card";
 import { StatusBadge } from "../components/Badge";
@@ -13,6 +13,8 @@ interface Patient {
     cpf: string;
     data_nascimento: string;
     telefone?: string;
+    formatted_cpf?: string;
+    formatted_phone?: string;
     email?: string;
     endereco?: string;
     status?: "ativo" | "inativo";
@@ -48,41 +50,103 @@ const PatientsPage: React.FC = () => {
 
     const itemsPerPage = 10;
 
-    const fetchPatients = async () => {
+    const fetchPatients = useCallback(async () => {
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
+            if (!token) {
+                console.warn(
+                    "Sem token de autenticação. Redirecionar para login."
+                );
+                setPatients([]);
+                setFilteredPatients([]);
+                return;
+            }
+
             const response = await axios.get(
                 "http://localhost:8000/api/patients",
                 {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                    params: {
+                        per_page: 100,
+                        sort_by: "created_at",
+                        sort_order: "desc",
+                        ...(statusFilter !== "todos" && {
+                            status: statusFilter,
+                        }),
+                    },
                 }
             );
 
-            // Simular dados adicionais para demonstração
-            const patientsWithStatus = response.data.map(
-                (patient: Patient) => ({
-                    ...patient,
-                    status: Math.random() > 0.2 ? "ativo" : "inativo",
-                    telefone: patient.telefone || "(11) 9999-9999",
-                    email: patient.email || "paciente@email.com",
-                    endereco: patient.endereco || "Endereço não informado",
-                    created_at: patient.created_at || new Date().toISOString(),
-                })
-            );
+            // A API retorna { success: true, data: { data: Patient[], ... } }
+            type Paginated<T> = { data: T[] };
+            type ApiSuccess = {
+                success?: boolean;
+                data?: Paginated<Patient> | Patient[];
+            };
+            const payload = response.data as ApiSuccess | Patient[];
+
+            let list: Patient[] = [];
+            if (Array.isArray(payload)) {
+                list = payload as Patient[];
+            } else if (
+                payload &&
+                typeof payload === "object" &&
+                payload.data &&
+                typeof payload.data === "object" &&
+                Array.isArray((payload.data as Paginated<Patient>).data)
+            ) {
+                // { success, data: { data: [...] } }
+                const p = payload.data as Paginated<Patient>;
+                list = p.data;
+            } else if (
+                payload &&
+                typeof payload === "object" &&
+                Array.isArray(payload.data as Patient[])
+            ) {
+                // { success, data: [...] }
+                list = payload.data as Patient[];
+            }
+
+            // Complementar dados para exibição (fallbacks visuais)
+            const patientsWithStatus = list.map((patient: Patient) => ({
+                ...patient,
+                status: patient.status ?? "ativo",
+                telefone: patient.telefone || "(11) 9999-9999",
+                email: patient.email || "paciente@email.com",
+                endereco: patient.endereco || "Endereço não informado",
+                created_at: patient.created_at || new Date().toISOString(),
+            }));
 
             setPatients(patientsWithStatus);
             setFilteredPatients(patientsWithStatus);
         } catch (error) {
-            console.error("Erro ao buscar pacientes:", error);
+            const anyErr = error as AxiosError<{
+                message?: string;
+                errors?: Record<string, string[]>;
+            }>;
+            console.error(
+                "Erro ao buscar pacientes:",
+                anyErr?.response?.status,
+                anyErr?.message
+            );
+            alert(
+                "Não foi possível carregar a lista de pacientes. Faça login novamente ou tente mais tarde."
+            );
+            if (anyErr?.response?.status === 401) {
+                localStorage.removeItem("authToken");
+            }
         } finally {
             setLoading(false);
         }
-    };
+    }, [statusFilter]);
 
     useEffect(() => {
         fetchPatients();
-    }, []);
+    }, [fetchPatients]);
 
     const calculateAge = (birthDate: string) => {
         const today = new Date();
@@ -119,10 +183,10 @@ const PatientsPage: React.FC = () => {
             );
         }
 
-        // Filtrar por status
+        // Filtrar por status (lado do cliente, caso necessário)
         if (statusFilter !== "todos") {
             filtered = filtered.filter(
-                (patient) => patient.status === statusFilter
+                (patient) => (patient.status || "ativo") === statusFilter
             );
         }
 
@@ -665,7 +729,9 @@ const PatientsPage: React.FC = () => {
                                                             color: "#6b7280",
                                                         }}
                                                     >
-                                                        CPF: {patient.cpf}
+                                                        CPF:{" "}
+                                                        {patient.formatted_cpf ||
+                                                            patient.cpf}
                                                     </div>
                                                 </div>
                                             </td>
@@ -677,7 +743,8 @@ const PatientsPage: React.FC = () => {
                                                     }}
                                                 >
                                                     <div>
-                                                        {patient.telefone}
+                                                        {patient.formatted_phone ||
+                                                            patient.telefone}
                                                     </div>
                                                     <div>{patient.email}</div>
                                                 </div>

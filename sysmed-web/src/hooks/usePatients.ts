@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { api } from "../services/api";
+import type { ApiResponse } from "../utils/errorHandler";
 
-interface Patient {
+export interface Patient {
     id: number;
     nome_completo: string;
     email?: string;
@@ -11,7 +12,21 @@ interface Patient {
     endereco?: string;
     created_at?: string;
     updated_at?: string;
+    status?: "ativo" | "inativo";
 }
+
+type PatientsListEnvelope = {
+    current_page: number;
+    data: Patient[];
+    total: number;
+    per_page: number;
+    last_page: number;
+};
+
+type PatientsIndexResponse =
+    | ApiResponse<PatientsListEnvelope | Patient[]>
+    | Patient[];
+type PatientShowResponse = ApiResponse<Patient> | Patient;
 
 interface UsePatients {
     patients: Patient[];
@@ -33,8 +48,34 @@ export const usePatients = (): UsePatients => {
 
             const params = search ? { search } : {};
             const response = await api.get("/patients", { params });
+            const payload: PatientsIndexResponse = response.data;
 
-            setPatients(response.data.data || response.data);
+            if (Array.isArray(payload)) {
+                setPatients(payload as Patient[]);
+                return;
+            }
+
+            if (
+                payload &&
+                typeof payload === "object" &&
+                "success" in payload
+            ) {
+                const data = payload.data;
+                if (Array.isArray(data)) {
+                    setPatients(data);
+                    return;
+                }
+                if (
+                    data &&
+                    Array.isArray((data as PatientsListEnvelope).data)
+                ) {
+                    setPatients((data as PatientsListEnvelope).data);
+                    return;
+                }
+            }
+
+            // Fallback seguro
+            setPatients([]);
         } catch (err) {
             console.error("Erro ao buscar pacientes:", err);
             const errorMessage =
@@ -48,7 +89,18 @@ export const usePatients = (): UsePatients => {
     const getPatient = async (id: number): Promise<Patient | null> => {
         try {
             const response = await api.get(`/patients/${id}`);
-            return response.data.data || response.data;
+            const payload: PatientShowResponse = response.data;
+
+            if (
+                payload &&
+                typeof payload === "object" &&
+                "success" in payload
+            ) {
+                return payload.data ?? null;
+            }
+
+            // Se não vier envelope padronizado
+            return (payload as Patient) ?? null;
         } catch (err) {
             console.error("Erro ao buscar paciente:", err);
             return null;
