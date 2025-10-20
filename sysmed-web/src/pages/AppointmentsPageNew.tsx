@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
     ChevronLeft,
     ChevronRight,
@@ -327,6 +328,35 @@ const AppointmentsPage: React.FC = () => {
 
                     {/* Botões de ação */}
                     <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <Link to="/calendar" style={{ textDecoration: "none" }}>
+                            <button
+                                type="button"
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.5rem",
+                                    padding: "0.75rem 1rem",
+                                    backgroundColor: "white",
+                                    color: "#374151",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "6px",
+                                    fontSize: "0.875rem",
+                                    fontWeight: "500",
+                                    cursor: "pointer",
+                                    transition: "background-color 0.2s",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                        "#f9fafb";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                        "white";
+                                }}
+                            >
+                                Calendário (Mês)
+                            </button>
+                        </Link>
                         <button
                             type="button"
                             onClick={() => handleCreateAppointment()}
