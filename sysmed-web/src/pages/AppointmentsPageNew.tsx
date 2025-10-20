@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
     ChevronLeft,
@@ -11,20 +11,17 @@ import {
     Printer,
 } from "lucide-react";
 import { useAppointments } from "../hooks/useAppointments";
-import {
-    format,
-    addDays,
-    subDays,
-    isSameDay,
-    startOfWeek,
-    addWeeks,
-    subWeeks,
-    addMinutes,
-} from "date-fns";
+import { format, addDays, subDays, startOfWeek, addWeeks, subWeeks, addMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Modal from "../components/Modal";
 import { useToast } from "../contexts/toastContextBase";
 import AppointmentForm from "../components/AppointmentForm";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import type { DateClickArg } from "@fullcalendar/interaction";
+import type { DateSpanApi } from "@fullcalendar/core";
 
 type AppointmentType = {
     id: number;
@@ -54,7 +51,9 @@ const AppointmentsPage: React.FC = () => {
 
     // Estados principais
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [viewMode, setViewMode] = useState<"day" | "week">("week");
+    const [viewMode, setViewMode] = useState<"day" | "week" | "month">(
+        "week"
+    );
     const [showForm, setShowForm] = useState(false);
     const [selectedAppointment, setSelectedAppointment] =
         useState<AppointmentType | null>(null);
@@ -166,17 +165,7 @@ const AppointmentsPage: React.FC = () => {
         return colors[status as keyof typeof colors] || "#6b7280";
     };
 
-    // Gerar horários do dia (8h às 18h, intervalos de 30min)
-    const generateTimeSlots = () => {
-        const slots: string[] = [];
-        for (let hour = 8; hour < 18; hour++) {
-            slots.push(`${hour.toString().padStart(2, "0")}:00`);
-            slots.push(`${hour.toString().padStart(2, "0")}:30`);
-        }
-        return slots;
-    };
-
-    const timeSlots = generateTimeSlots();
+    // Observação: grade antiga removida; usamos FullCalendar para Mês/Semana/Dia
 
     // Gerar dias da semana
     const getWeekDays = () => {
@@ -209,6 +198,20 @@ const AppointmentsPage: React.FC = () => {
             }
         }
     };
+
+    // Eventos do FullCalendar mapeados dos agendamentos
+    const calendarEvents = useMemo(
+        () =>
+            appointments.map((apt) => ({
+                id: String(apt.id),
+                title: apt.patient?.nome_completo || "Consulta",
+                start: apt.data_hora_inicio,
+                end: apt.data_hora_fim,
+                extendedProps: { apt },
+                color: getStatusColor(apt.status),
+            })),
+        [appointments]
+    );
 
     if (loading && appointments.length === 0) {
         return (
@@ -596,455 +599,132 @@ const AppointmentsPage: React.FC = () => {
 
                     {/* Seletor de visualização */}
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button
-                            onClick={() => setViewMode("day")}
-                            style={{
-                                padding: "0.5rem 1rem",
-                                backgroundColor:
-                                    viewMode === "day"
-                                        ? "#dbeafe"
-                                        : "transparent",
-                                color:
-                                    viewMode === "day" ? "#2563eb" : "#6b7280",
-                                border: "1px solid #d1d5db",
-                                borderRadius: "4px",
-                                fontSize: "0.875rem",
-                                cursor: "pointer",
-                            }}
-                        >
-                            DIA
-                        </button>
-                        <button
-                            onClick={() => setViewMode("week")}
-                            style={{
-                                padding: "0.5rem 1rem",
-                                backgroundColor:
-                                    viewMode === "week"
-                                        ? "#dbeafe"
-                                        : "transparent",
-                                color:
-                                    viewMode === "week" ? "#2563eb" : "#6b7280",
-                                border: "1px solid #d1d5db",
-                                borderRadius: "4px",
-                                fontSize: "0.875rem",
-                                cursor: "pointer",
-                            }}
-                        >
-                            SEMANA
-                        </button>
+                        {(["month", "week", "day"] as Array<
+                            "month" | "week" | "day"
+                        >).map((vm) => (
+                            <button
+                                key={vm}
+                                onClick={() => setViewMode(vm)}
+                                style={{
+                                    padding: "0.5rem 1rem",
+                                    backgroundColor:
+                                        viewMode === vm ? "#dbeafe" : "transparent",
+                                    color: viewMode === vm ? "#2563eb" : "#6b7280",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "4px",
+                                    fontSize: "0.875rem",
+                                    cursor: "pointer",
+                                    textTransform: "uppercase",
+                                }}
+                            >
+                                {vm === "month" ? "MÊS" : vm === "week" ? "SEMANA" : "DIA"}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
 
-            {/* Conteúdo principal */}
+            {/* Conteúdo principal: FullCalendar */}
             <div style={{ padding: "0 2rem" }}>
-                {/* Visualização semanal - Estilo iClinic */}
-                {viewMode === "week" && (
-                    <div
-                        style={{
-                            backgroundColor: "white",
-                            borderRadius: "8px",
-                            overflow: "hidden",
-                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                            marginTop: "1rem",
+                <div
+                    style={{
+                        backgroundColor: "white",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                        marginTop: "1rem",
+                        padding: "1rem",
+                    }}
+                >
+                    <FullCalendar
+                        key={viewMode}
+                        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                        initialView={
+                            viewMode === "month"
+                                ? "dayGridMonth"
+                                : viewMode === "day"
+                                ? "timeGridDay"
+                                : "timeGridWeek"
+                        }
+                        headerToolbar={{
+                            left: "prev,next today",
+                            center: "title",
+                            right: "dayGridMonth,timeGridWeek,timeGridDay",
                         }}
-                    >
-                        {/* Header dos dias da semana */}
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "80px repeat(7, 1fr)",
-                                borderBottom: "1px solid #e5e7eb",
-                                backgroundColor: "#f9fafb",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    padding: "1rem 0.5rem",
-                                    fontSize: "0.875rem",
-                                    fontWeight: "500",
-                                    color: "#6b7280",
-                                    textAlign: "center",
-                                    borderRight: "1px solid #e5e7eb",
-                                }}
-                            >
-                                Horário
-                            </div>
-                            {weekDays.map((day, index) => {
-                                const dayNames = [
-                                    "Domingo",
-                                    "Segunda",
-                                    "Terça",
-                                    "Quarta",
-                                    "Quinta",
-                                    "Sexta",
-                                    "Sábado",
-                                ];
-                                return (
-                                    <div
-                                        key={index}
-                                        style={{
-                                            padding: "1rem 0.5rem",
-                                            textAlign: "center",
-                                            borderRight:
-                                                index < 6
-                                                    ? "1px solid #e5e7eb"
-                                                    : "none",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                fontSize: "0.875rem",
-                                                fontWeight: "500",
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            {dayNames[index]}
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.875rem",
-                                                color: "#6b7280",
-                                                marginTop: "2px",
-                                            }}
-                                        >
-                                            {format(day, "d/MMM", {
-                                                locale: ptBR,
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Grid de horários */}
-                        <div style={{ position: "relative" }}>
-                            {timeSlots.map((time, timeIndex) => (
-                                <div
-                                    key={time}
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns:
-                                            "80px repeat(7, 1fr)",
-                                        minHeight: "45px",
-                                        borderBottom:
-                                            timeIndex < timeSlots.length - 1
-                                                ? "1px solid #f3f4f6"
-                                                : "none",
-                                    }}
-                                >
-                                    {/* Coluna de horário */}
-                                    <div
-                                        style={{
-                                            padding: "0.5rem",
-                                            fontSize: "0.75rem",
-                                            color: "#6b7280",
-                                            textAlign: "center",
-                                            borderRight: "1px solid #e5e7eb",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            backgroundColor: "#f9fafb",
-                                        }}
-                                    >
-                                        {time}
-                                    </div>
-
-                                    {/* Colunas dos dias */}
-                                    {weekDays.map((day, dayIndex) => {
-                                        const dayAppointments =
-                                            appointments.filter((apt) => {
-                                                const aptDate = new Date(
-                                                    apt.data_hora_inicio
-                                                );
-                                                const aptTime = format(
-                                                    aptDate,
-                                                    "HH:mm"
-                                                );
-                                                return (
-                                                    isSameDay(aptDate, day) &&
-                                                    aptTime === time
-                                                );
-                                            });
-
-                                        const [hh, mm] = time
-                                            .split(":")
-                                            .map((n) => parseInt(n, 10));
-                                        const slotDate = new Date(day);
-                                        slotDate.setHours(hh, mm, 0, 0);
-                                        const now = new Date();
-                                        const isPastSlot =
-                                            slotDate.toDateString() <
-                                                now.toDateString() ||
-                                            (slotDate.toDateString() ===
-                                                now.toDateString() &&
-                                                slotDate < now);
-
-                                        return (
-                                            <div
-                                                key={`${time}-${dayIndex}`}
-                                                style={{
-                                                    padding: "0.25rem",
-                                                    borderRight:
-                                                        dayIndex < 6
-                                                            ? "1px solid #e5e7eb"
-                                                            : "none",
-                                                    cursor: isPastSlot
-                                                        ? "not-allowed"
-                                                        : "pointer",
-                                                    position: "relative",
-                                                    backgroundColor: isPastSlot
-                                                        ? "#f9fafb"
-                                                        : undefined,
-                                                }}
-                                                onClick={() => {
-                                                    if (
-                                                        !dayAppointments.length &&
-                                                        !isPastSlot
-                                                    ) {
-                                                        handleCreateAppointment(
-                                                            { day, time }
-                                                        );
-                                                    }
-                                                }}
-                                            >
-                                                {dayAppointments.map(
-                                                    (appointment) => (
-                                                        <div
-                                                            key={appointment.id}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleEditAppointment(
-                                                                    appointment
-                                                                );
-                                                            }}
-                                                            style={{
-                                                                backgroundColor:
-                                                                    getStatusColor(
-                                                                        appointment.status
-                                                                    ),
-                                                                color: "white",
-                                                                padding:
-                                                                    "0.25rem 0.5rem",
-                                                                borderRadius:
-                                                                    "3px",
-                                                                fontSize:
-                                                                    "0.75rem",
-                                                                fontWeight:
-                                                                    "500",
-                                                                cursor: "pointer",
-                                                                marginBottom:
-                                                                    "2px",
-                                                                overflow:
-                                                                    "hidden",
-                                                                textOverflow:
-                                                                    "ellipsis",
-                                                                whiteSpace:
-                                                                    "nowrap",
-                                                            }}
-                                                        >
-                                                            {
-                                                                appointment
-                                                                    .patient
-                                                                    .nome_completo
-                                                            }
-                                                        </div>
-                                                    )
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Visualização por dia */}
-                {viewMode === "day" && (
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "80px 1fr",
-                            backgroundColor: "white",
-                            borderRadius: "8px",
-                            overflow: "hidden",
-                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                            marginTop: "1rem",
+                        locale="pt-br"
+                        buttonText={{ today: "Hoje", month: "Mês", week: "Semana", day: "Dia" }}
+                        nowIndicator={true}
+                        navLinks={true}
+                        height="auto"
+                        events={calendarEvents}
+                        validRange={{ start: format(new Date(), "yyyy-LL-dd") }}
+                        hiddenDays={[0]}
+                        allDaySlot={false}
+                        slotMinTime="07:00:00"
+                        slotMaxTime="19:00:00"
+                        slotDuration="00:30:00"
+                        slotLabelInterval="00:30:00"
+                        businessHours={[
+                            { daysOfWeek: [1, 2, 3, 4, 5], startTime: "08:00", endTime: "18:00" },
+                            { daysOfWeek: [6], startTime: "08:00", endTime: "11:00" },
+                        ]}
+                        selectable={true}
+                        selectAllow={(span: DateSpanApi) => {
+                            if (span.allDay) return false; // não selecionar no mês
+                            const now = new Date();
+                            const start = span.start instanceof Date ? span.start : new Date(span.start);
+                            const sDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                            const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            if (sDay.getTime() < t0.getTime()) return false;
+                            if (sDay.getTime() === t0.getTime() && start < now) return false;
+                            // domingo fechado
+                            if (start.getDay() === 0) return false;
+                            // expediente
+                            const minutes = start.getHours() * 60 + start.getMinutes();
+                            const close = start.getDay() === 6 ? 11 * 60 : 18 * 60;
+                            const open = 8 * 60;
+                            if (minutes < open || minutes > close - 30) return false;
+                            return true;
                         }}
-                    >
-                        {/* Coluna de horários */}
-                        <div
-                            style={{
-                                backgroundColor: "#f9fafb",
-                                borderRight: "1px solid #e5e7eb",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    height: "60px",
-                                    borderBottom: "1px solid #e5e7eb",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "0.875rem",
-                                    fontWeight: "500",
-                                    color: "#6b7280",
-                                }}
-                            >
-                                Horário
-                            </div>
-                            {timeSlots.map((time) => (
-                                <div
-                                    key={time}
-                                    style={{
-                                        height: "45px",
-                                        borderBottom: "1px solid #f3f4f6",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontSize: "0.75rem",
-                                        color: "#6b7280",
-                                    }}
-                                >
-                                    {time}
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Coluna de consultas */}
-                        <div style={{ position: "relative" }}>
-                            <div
-                                style={{
-                                    height: "60px",
-                                    borderBottom: "1px solid #e5e7eb",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "0.875rem",
-                                    fontWeight: "500",
-                                    color: "#6b7280",
-                                    backgroundColor: "#f9fafb",
-                                }}
-                            >
-                                {format(currentDate, "EEEE", { locale: ptBR })}
-                            </div>
-
-                            {timeSlots.map((time) => {
-                                const dayAppointments = appointments.filter(
-                                    (apt) => {
-                                        const aptDate = new Date(
-                                            apt.data_hora_inicio
-                                        );
-                                        const aptTime = format(
-                                            aptDate,
-                                            "HH:mm"
-                                        );
-                                        return (
-                                            isSameDay(aptDate, currentDate) &&
-                                            aptTime === time
-                                        );
-                                    }
-                                );
-
-                                const [hh, mm] = time
-                                    .split(":")
-                                    .map((n) => parseInt(n, 10));
-                                const slotDate = new Date(currentDate);
-                                slotDate.setHours(hh, mm, 0, 0);
-                                const now = new Date();
-                                const isPastSlot =
-                                    slotDate.toDateString() <
-                                        now.toDateString() ||
-                                    (slotDate.toDateString() ===
-                                        now.toDateString() &&
-                                        slotDate < now);
-
-                                return (
-                                    <div
-                                        key={time}
-                                        style={{
-                                            height: "45px",
-                                            borderBottom: "1px solid #f3f4f6",
-                                            position: "relative",
-                                            cursor: isPastSlot
-                                                ? "not-allowed"
-                                                : "pointer",
-                                            backgroundColor: isPastSlot
-                                                ? "#f9fafb"
-                                                : undefined,
-                                        }}
-                                        onClick={() => {
-                                            if (
-                                                !dayAppointments.length &&
-                                                !isPastSlot
-                                            ) {
-                                                handleCreateAppointment({
-                                                    day: currentDate,
-                                                    time,
-                                                });
-                                            }
-                                        }}
-                                    >
-                                        {dayAppointments.map((appointment) => (
-                                            <div
-                                                key={appointment.id}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleEditAppointment(
-                                                        appointment
-                                                    );
-                                                }}
-                                                style={{
-                                                    position: "absolute",
-                                                    top: "2px",
-                                                    left: "8px",
-                                                    right: "8px",
-                                                    bottom: "2px",
-                                                    backgroundColor:
-                                                        getStatusColor(
-                                                            appointment.status
-                                                        ),
-                                                    borderRadius: "4px",
-                                                    padding: "0.25rem 0.5rem",
-                                                    color: "white",
-                                                    cursor: "pointer",
-                                                    fontSize: "0.75rem",
-                                                    display: "flex",
-                                                    flexDirection: "column",
-                                                    justifyContent: "center",
-                                                    boxShadow:
-                                                        "0 1px 3px rgba(0, 0, 0, 0.2)",
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        fontWeight: "500",
-                                                        marginBottom: "2px",
-                                                    }}
-                                                >
-                                                    {
-                                                        appointment.patient
-                                                            .nome_completo
-                                                    }
-                                                </div>
-                                                <div
-                                                    style={{
-                                                        fontSize: "0.625rem",
-                                                        opacity: 0.9,
-                                                    }}
-                                                >
-                                                    {appointment.tipo_consulta ||
-                                                        "Consulta"}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+                        select={(info) => {
+                            const start = new Date(info.start);
+                            const end = addMinutes(start, 30);
+                            setInitialStart(format(start, "yyyy-LL-dd'T'HH:mm"));
+                            setInitialEnd(format(end, "yyyy-LL-dd'T'HH:mm"));
+                            setShowForm(true);
+                        }}
+                        dateClick={(arg: DateClickArg) => {
+                            if (arg.view?.type === "dayGridMonth") {
+                                // Na visão de mês: trocar para dia
+                                setCurrentDate(arg.date);
+                                setViewMode("day");
+                                return;
+                            }
+                            const start = arg.date;
+                            const now = new Date();
+                            const sDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                            const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            if (sDay.getTime() < t0.getTime()) return;
+                            if (sDay.getTime() === t0.getTime() && start < now) return;
+                            if (start.getDay() === 0) return;
+                            const minutes = start.getHours() * 60 + start.getMinutes();
+                            const close = start.getDay() === 6 ? 11 * 60 : 18 * 60;
+                            const open = 8 * 60;
+                            if (minutes < open || minutes > close - 30) return;
+                            const end = addMinutes(start, 30);
+                            setInitialStart(format(start, "yyyy-LL-dd'T'HH:mm"));
+                            setInitialEnd(format(end, "yyyy-LL-dd'T'HH:mm"));
+                            setShowForm(true);
+                        }}
+                        eventClick={(info) => {
+                            const id = Number(info.event.id);
+                            const apt = appointments.find((a) => a.id === id);
+                            if (apt) {
+                                handleEditAppointment(apt as unknown as AppointmentType);
+                            }
+                        }}
+                    />
+                </div>
             </div>
 
             {/* Modal do formulário */}
