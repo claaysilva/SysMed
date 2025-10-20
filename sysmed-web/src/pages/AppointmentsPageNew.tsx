@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
     ChevronLeft,
@@ -11,7 +11,7 @@ import {
     Printer,
 } from "lucide-react";
 import { useAppointments } from "../hooks/useAppointments";
-import { format, addDays, subDays, startOfWeek, addWeeks, subWeeks, addMinutes } from "date-fns";
+import { format, addDays, startOfWeek, addMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Modal from "../components/Modal";
 import { useToast } from "../contexts/toastContextBase";
@@ -21,7 +21,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateClickArg } from "@fullcalendar/interaction";
-import type { DateSpanApi } from "@fullcalendar/core";
+import type { DateSpanApi, DatesSetArg, CalendarApi } from "@fullcalendar/core";
 
 type AppointmentType = {
     id: number;
@@ -51,9 +51,7 @@ const AppointmentsPage: React.FC = () => {
 
     // Estados principais
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [viewMode, setViewMode] = useState<"day" | "week" | "month">(
-        "week"
-    );
+    const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
     const [showForm, setShowForm] = useState(false);
     const [selectedAppointment, setSelectedAppointment] =
         useState<AppointmentType | null>(null);
@@ -179,24 +177,22 @@ const AppointmentsPage: React.FC = () => {
 
     const weekDays = getWeekDays();
 
-    const navigateWeek = (direction: "prev" | "next") => {
-        if (direction === "prev") {
-            setCurrentDate(subWeeks(currentDate, 1));
-        } else {
-            setCurrentDate(addWeeks(currentDate, 1));
-        }
+    // Controle do FullCalendar via ref
+    const calendarRef = useRef<FullCalendar | null>(null);
+    const getCalendarApi = (): CalendarApi | undefined => {
+        const inst = calendarRef.current as unknown as {
+            getApi?: () => CalendarApi;
+        } | null;
+        return inst?.getApi ? inst.getApi() : undefined;
     };
-
-    const navigateDate = (direction: "prev" | "next") => {
-        if (viewMode === "week") {
-            navigateWeek(direction);
-        } else {
-            if (direction === "prev") {
-                setCurrentDate(subDays(currentDate, 1));
-            } else {
-                setCurrentDate(addDays(currentDate, 1));
-            }
-        }
+    const onToday = () => getCalendarApi()?.today();
+    const onPrev = () => getCalendarApi()?.prev();
+    const onNext = () => getCalendarApi()?.next();
+    const onChangeView = (vm: "month" | "week" | "day") => {
+        const api = getCalendarApi();
+        const view = vm === "month" ? "dayGridMonth" : vm === "day" ? "timeGridDay" : "timeGridWeek";
+        api?.changeView(view);
+        setViewMode(vm);
     };
 
     // Eventos do FullCalendar mapeados dos agendamentos
@@ -525,7 +521,7 @@ const AppointmentsPage: React.FC = () => {
                         }}
                     >
                         <button
-                            onClick={() => setCurrentDate(new Date())}
+                            onClick={onToday}
                             style={{
                                 padding: "0.5rem 1rem",
                                 backgroundColor: "#2563eb",
@@ -548,7 +544,7 @@ const AppointmentsPage: React.FC = () => {
                             }}
                         >
                             <button
-                                onClick={() => navigateDate("prev")}
+                                onClick={onPrev}
                                 style={{
                                     padding: "0.5rem",
                                     backgroundColor: "transparent",
@@ -562,7 +558,7 @@ const AppointmentsPage: React.FC = () => {
                                 <ChevronLeft size={16} />
                             </button>
                             <button
-                                onClick={() => navigateDate("next")}
+                                onClick={onNext}
                                 style={{
                                     padding: "0.5rem",
                                     backgroundColor: "transparent",
@@ -599,17 +595,18 @@ const AppointmentsPage: React.FC = () => {
 
                     {/* Seletor de visualização */}
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                        {(["month", "week", "day"] as Array<
-                            "month" | "week" | "day"
-                        >).map((vm) => (
+                        {(["month", "week", "day"] as Array<"month" | "week" | "day">).map((vm) => (
                             <button
                                 key={vm}
-                                onClick={() => setViewMode(vm)}
+                                onClick={() => onChangeView(vm)}
                                 style={{
                                     padding: "0.5rem 1rem",
                                     backgroundColor:
-                                        viewMode === vm ? "#dbeafe" : "transparent",
-                                    color: viewMode === vm ? "#2563eb" : "#6b7280",
+                                        viewMode === vm
+                                            ? "#dbeafe"
+                                            : "transparent",
+                                    color:
+                                        viewMode === vm ? "#2563eb" : "#6b7280",
                                     border: "1px solid #d1d5db",
                                     borderRadius: "4px",
                                     fontSize: "0.875rem",
@@ -617,7 +614,11 @@ const AppointmentsPage: React.FC = () => {
                                     textTransform: "uppercase",
                                 }}
                             >
-                                {vm === "month" ? "MÊS" : vm === "week" ? "SEMANA" : "DIA"}
+                                {vm === "month"
+                                    ? "MÊS"
+                                    : vm === "week"
+                                    ? "SEMANA"
+                                    : "DIA"}
                             </button>
                         ))}
                     </div>
@@ -637,22 +638,23 @@ const AppointmentsPage: React.FC = () => {
                     }}
                 >
                     <FullCalendar
-                        key={viewMode}
-                        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                        initialView={
-                            viewMode === "month"
-                                ? "dayGridMonth"
-                                : viewMode === "day"
-                                ? "timeGridDay"
-                                : "timeGridWeek"
-                        }
-                        headerToolbar={{
-                            left: "prev,next today",
-                            center: "title",
-                            right: "dayGridMonth,timeGridWeek,timeGridDay",
-                        }}
+                        ref={calendarRef}
+                        plugins={[
+                            dayGridPlugin,
+                            timeGridPlugin,
+                            interactionPlugin,
+                        ]}
+                        initialView={viewMode === "month" ? "dayGridMonth" : viewMode === "day" ? "timeGridDay" : "timeGridWeek"}
+                        headerToolbar={false}
+                        footerToolbar={false}
+                        initialDate={currentDate}
                         locale="pt-br"
-                        buttonText={{ today: "Hoje", month: "Mês", week: "Semana", day: "Dia" }}
+                        buttonText={{
+                            today: "Hoje",
+                            month: "Mês",
+                            week: "Semana",
+                            day: "Dia",
+                        }}
                         nowIndicator={true}
                         navLinks={true}
                         height="auto"
@@ -665,31 +667,56 @@ const AppointmentsPage: React.FC = () => {
                         slotDuration="00:30:00"
                         slotLabelInterval="00:30:00"
                         businessHours={[
-                            { daysOfWeek: [1, 2, 3, 4, 5], startTime: "08:00", endTime: "18:00" },
-                            { daysOfWeek: [6], startTime: "08:00", endTime: "11:00" },
+                            {
+                                daysOfWeek: [1, 2, 3, 4, 5],
+                                startTime: "08:00",
+                                endTime: "18:00",
+                            },
+                            {
+                                daysOfWeek: [6],
+                                startTime: "08:00",
+                                endTime: "11:00",
+                            },
                         ]}
                         selectable={true}
                         selectAllow={(span: DateSpanApi) => {
                             if (span.allDay) return false; // não selecionar no mês
                             const now = new Date();
-                            const start = span.start instanceof Date ? span.start : new Date(span.start);
-                            const sDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-                            const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            const start =
+                                span.start instanceof Date
+                                    ? span.start
+                                    : new Date(span.start);
+                            const sDay = new Date(
+                                start.getFullYear(),
+                                start.getMonth(),
+                                start.getDate()
+                            );
+                            const t0 = new Date(
+                                now.getFullYear(),
+                                now.getMonth(),
+                                now.getDate()
+                            );
                             if (sDay.getTime() < t0.getTime()) return false;
-                            if (sDay.getTime() === t0.getTime() && start < now) return false;
+                            if (sDay.getTime() === t0.getTime() && start < now)
+                                return false;
                             // domingo fechado
                             if (start.getDay() === 0) return false;
                             // expediente
-                            const minutes = start.getHours() * 60 + start.getMinutes();
-                            const close = start.getDay() === 6 ? 11 * 60 : 18 * 60;
+                            const minutes =
+                                start.getHours() * 60 + start.getMinutes();
+                            const close =
+                                start.getDay() === 6 ? 11 * 60 : 18 * 60;
                             const open = 8 * 60;
-                            if (minutes < open || minutes > close - 30) return false;
+                            if (minutes < open || minutes > close - 30)
+                                return false;
                             return true;
                         }}
                         select={(info) => {
                             const start = new Date(info.start);
                             const end = addMinutes(start, 30);
-                            setInitialStart(format(start, "yyyy-LL-dd'T'HH:mm"));
+                            setInitialStart(
+                                format(start, "yyyy-LL-dd'T'HH:mm")
+                            );
                             setInitialEnd(format(end, "yyyy-LL-dd'T'HH:mm"));
                             setShowForm(true);
                         }}
@@ -702,17 +729,30 @@ const AppointmentsPage: React.FC = () => {
                             }
                             const start = arg.date;
                             const now = new Date();
-                            const sDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-                            const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            const sDay = new Date(
+                                start.getFullYear(),
+                                start.getMonth(),
+                                start.getDate()
+                            );
+                            const t0 = new Date(
+                                now.getFullYear(),
+                                now.getMonth(),
+                                now.getDate()
+                            );
                             if (sDay.getTime() < t0.getTime()) return;
-                            if (sDay.getTime() === t0.getTime() && start < now) return;
+                            if (sDay.getTime() === t0.getTime() && start < now)
+                                return;
                             if (start.getDay() === 0) return;
-                            const minutes = start.getHours() * 60 + start.getMinutes();
-                            const close = start.getDay() === 6 ? 11 * 60 : 18 * 60;
+                            const minutes =
+                                start.getHours() * 60 + start.getMinutes();
+                            const close =
+                                start.getDay() === 6 ? 11 * 60 : 18 * 60;
                             const open = 8 * 60;
                             if (minutes < open || minutes > close - 30) return;
                             const end = addMinutes(start, 30);
-                            setInitialStart(format(start, "yyyy-LL-dd'T'HH:mm"));
+                            setInitialStart(
+                                format(start, "yyyy-LL-dd'T'HH:mm")
+                            );
                             setInitialEnd(format(end, "yyyy-LL-dd'T'HH:mm"));
                             setShowForm(true);
                         }}
@@ -720,8 +760,18 @@ const AppointmentsPage: React.FC = () => {
                             const id = Number(info.event.id);
                             const apt = appointments.find((a) => a.id === id);
                             if (apt) {
-                                handleEditAppointment(apt as unknown as AppointmentType);
+                                handleEditAppointment(
+                                    apt as unknown as AppointmentType
+                                );
                             }
+                        }}
+                        datesSet={(arg: DatesSetArg) => {
+                            // manter o título e botões em sincronia com a visão atual
+                            setCurrentDate(arg.start);
+                            const t = arg.view.type;
+                            const vm: "day" | "week" | "month" =
+                                t === "dayGridMonth" ? "month" : t === "timeGridDay" ? "day" : "week";
+                            if (vm !== viewMode) setViewMode(vm);
                         }}
                     />
                 </div>
