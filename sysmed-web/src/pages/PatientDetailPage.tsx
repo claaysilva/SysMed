@@ -6,7 +6,7 @@ import { StatusBadge } from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import PatientFormModal from "../components/PatientFormModal";
 import ConfirmationModal from "../components/ConfirmationModal";
-import { useNotification } from "../components/NotificationProvider";
+import { useNotification } from "../components/notificationContext";
 
 interface Patient {
     id: number;

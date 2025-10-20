@@ -1,5 +1,5 @@
 import React from "react";
-import { useNotification } from "./NotificationProvider";
+import { useNotification } from "./notificationContext";
 import { ApiErrorHandler } from "../utils/errorHandler";
 
 interface FormFeedbackProps {

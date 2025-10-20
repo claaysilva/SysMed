@@ -184,9 +184,50 @@ svg[data-slot="icon"] {
 }
 
 /* FullCalendar: marcar dias passados como desabilitados (visual) */
-.fc-day-disabled {
+/* FullCalendar: reforço visual para dias passados (desabilitados) */
+.fc .fc-day-disabled {
     cursor: not-allowed !important;
-    opacity: 0.6 !important;
+    pointer-events: none !important;
+}
+
+/* Usar classes nativas do FullCalendar para dias passados */
+.fc .fc-day-past {
+    background-color: #f3f4f6 !important; /* slate-100 */
+    cursor: not-allowed !important;
+}
+.fc-timegrid .fc-timegrid-col.fc-day-past,
+.fc-timegrid .fc-timegrid-col.fc-day-past .fc-timegrid-col-frame,
+.fc-timegrid .fc-timegrid-col.fc-day-past .fc-timegrid-slot,
+.fc-timegrid .fc-timegrid-col.fc-day-past .fc-timegrid-slot-lane {
+    background-color: #f3f4f6 !important;
+}
+.fc-daygrid .fc-daygrid-day.fc-day-past,
+.fc-daygrid .fc-daygrid-day.fc-day-past .fc-daygrid-day-frame {
+    background-color: #f3f4f6 !important;
+}
+.fc .fc-col-header-cell.fc-day-past {
+    background-color: #f3f4f6 !important;
+    color: #6b7280 !important; /* gray-500 */
+}
+
+/* TimeGrid (Semana/Dia): pintar a coluna e slots dos dias desabilitados */
+.fc-timegrid .fc-timegrid-col.fc-day-disabled,
+.fc-timegrid .fc-timegrid-col.fc-day-disabled .fc-timegrid-col-frame,
+.fc-timegrid .fc-timegrid-col.fc-day-disabled .fc-timegrid-slot,
+.fc-timegrid .fc-timegrid-col.fc-day-disabled .fc-timegrid-slot-lane {
+    background-color: #f3f4f6 !important; /* slate-100 */
+}
+
+/* DayGrid (Mês): pintar o dia desabilitado */
+.fc-daygrid .fc-daygrid-day.fc-day-disabled,
+.fc-daygrid .fc-daygrid-day.fc-day-disabled .fc-daygrid-day-frame {
+    background-color: #f3f4f6 !important;
+}
+
+/* Cabeçalho do dia (week/day): também acinzentar */
+.fc .fc-col-header-cell.fc-day-disabled {
+    background-color: #f3f4f6 !important;
+    color: #6b7280 !important; /* gray-500 */
 }
 
 /* Remover sublinhados e bullets - mas preservar espaçamentos */

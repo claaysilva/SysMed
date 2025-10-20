@@ -12,7 +12,7 @@ import {
     UserIcon,
 } from "@heroicons/react/24/outline";
 import { apiRequest } from "../services/api";
-import { useNotification } from "../components/NotificationProvider";
+import { useNotification } from "../components/notificationContext";
 import { ConfirmDialog } from "../components/FormFeedback";
 
 interface Patient {

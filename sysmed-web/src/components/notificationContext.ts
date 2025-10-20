@@ -1,5 +1,12 @@
 import { createContext, useContext } from "react";
-import type { NotificationData } from "./NotificationProvider";
+export interface NotificationData {
+    id: string;
+    type: "success" | "error" | "warning" | "info";
+    title: string;
+    message?: string;
+    duration?: number;
+    persistent?: boolean;
+}
 
 export interface NotificationContextType {
     notifications: NotificationData[];

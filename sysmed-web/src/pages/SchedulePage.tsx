@@ -101,6 +101,16 @@ const SchedulePage: React.FC = () => {
 
     // Clique simples em um slot (garantir mesmas regras de bloqueio)
     const handleDateClick = (arg: DateClickArg) => {
+        // Ignorar cliques na visão mensal (dayGridMonth)
+        // para evitar abrir o modal em células de dia inteiro
+        // e manter o fluxo apenas nas visões semana/dia
+        // onde trabalhamos com intervalos de 30min
+        // (seleção no mês permanece bloqueada por selectAllow)
+        //
+        // Também evita o comportamento citado de clique não esperado.
+        if (arg.view?.type === "dayGridMonth") {
+            return;
+        }
         const start: Date =
             arg?.date instanceof Date ? arg.date : new Date(arg?.date);
         if (Number.isNaN(start?.getTime())) return;
@@ -185,6 +195,8 @@ const SchedulePage: React.FC = () => {
                         week: "Semana",
                         day: "Dia",
                     }}
+                    nowIndicator={true}
+                    navLinks={true}
                     selectable={true}
                     select={handleSelect}
                     dateClick={handleDateClick}
@@ -196,80 +208,6 @@ const SchedulePage: React.FC = () => {
                     validRange={{
                         // usar string yyyy-MM-dd para evitar ambiguidade de timezone
                         start: format(new Date(), "yyyy-LL-dd"),
-                    }}
-                    dayHeaderClassNames={(arg) => {
-                        const d = arg.date as Date;
-                        const cell = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate()
-                        );
-                        const today = new Date();
-                        const t0 = new Date(
-                            today.getFullYear(),
-                            today.getMonth(),
-                            today.getDate()
-                        );
-                        const disabled = cell.getTime() < t0.getTime();
-                        return disabled
-                            ? ["fc-custom-header", "fc-day-disabled"]
-                            : ["fc-custom-header"];
-                    }}
-                    dayCellClassNames={(arg) => {
-                        // aplicar estilo de desabilitado para qualquer dia anterior a hoje
-                        const d = arg.date as Date;
-                        const cell = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate()
-                        );
-                        const today = new Date();
-                        const t0 = new Date(
-                            today.getFullYear(),
-                            today.getMonth(),
-                            today.getDate()
-                        );
-                        return cell.getTime() < t0.getTime()
-                            ? ["fc-day-disabled"]
-                            : [];
-                    }}
-                    dayCellDidMount={(arg) => {
-                        const d = arg.date as Date;
-                        const cell = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate()
-                        );
-                        const today = new Date();
-                        const t0 = new Date(
-                            today.getFullYear(),
-                            today.getMonth(),
-                            today.getDate()
-                        );
-                        if (cell.getTime() < t0.getTime()) {
-                            arg.el.setAttribute("aria-disabled", "true");
-                            (arg.el as HTMLElement).style.cursor =
-                                "not-allowed";
-                            (arg.el as HTMLElement).style.opacity = "0.6";
-                        }
-                    }}
-                    // aplicar mesma classe na coluna do timeGrid (estilo consistente)
-                    slotLaneClassNames={(arg) => {
-                        const d = arg.date as Date;
-                        const cell = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate()
-                        );
-                        const today = new Date();
-                        const t0 = new Date(
-                            today.getFullYear(),
-                            today.getMonth(),
-                            today.getDate()
-                        );
-                        return cell.getTime() < t0.getTime()
-                            ? ["fc-day-disabled"]
-                            : [];
                     }}
                     hiddenDays={[0]}
                     slotMinTime="07:00:00"
