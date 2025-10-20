@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useToast } from "../hooks/useToast";
+import { useToast } from "../contexts/toastContextBase";
 import { type MedicalRecord } from "../components/MedicalRecordCard";
 import LoadingSpinner from "../components/LoadingSpinner";
 import StatusBadge from "../components/StatusBadge";
@@ -53,11 +53,11 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
     const [signModal, setSignModal] = useState(false);
     const [signing, setSigning] = useState(false);
 
-    const { showSuccess, showError, showInfo } = useToast();
-
-    useEffect(() => {
-        loadMedicalRecord();
-    }, [recordId]);
+    const { showSuccess, showError, showInfo } = useToast() as {
+        showSuccess: (m: string) => void;
+        showError: (m: string) => void;
+        showInfo: (m: string) => void;
+    };
 
     const loadMedicalRecord = useCallback(async () => {
         try {
@@ -163,6 +163,10 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
             setLoading(false);
         }
     }, [recordId, showError]);
+
+    useEffect(() => {
+        loadMedicalRecord();
+    }, [recordId, loadMedicalRecord]);
 
     const handleSignRecord = async () => {
         try {

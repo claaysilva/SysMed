@@ -22,7 +22,7 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Modal from "../components/Modal";
-import { useToast } from "../hooks/useToast";
+import { useToast } from "../contexts/toastContextBase";
 import AppointmentForm from "../components/AppointmentForm";
 
 type AppointmentType = {

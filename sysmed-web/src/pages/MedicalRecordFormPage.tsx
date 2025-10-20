@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useToast } from "../hooks/useToast";
+import { useToast } from "../contexts/toastContextBase";
 import LoadingSpinner from "../components/LoadingSpinner";
 import DiagnosisForm from "../components/DiagnosisForm";
 import PrescriptionForm from "../components/PrescriptionForm";
@@ -60,10 +60,6 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
     const { showSuccess, showError, showInfo } = useToast();
 
     const isEdit = recordId !== undefined;
-
-    useEffect(() => {
-        loadInitialData();
-    }, [recordId]);
 
     const loadInitialData = useCallback(async () => {
         try {
@@ -135,6 +131,10 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
             setLoading(false);
         }
     }, [isEdit, showError]);
+
+    useEffect(() => {
+        loadInitialData();
+    }, [recordId, loadInitialData]);
 
     const handleInputChange = (
         field: keyof FormData,

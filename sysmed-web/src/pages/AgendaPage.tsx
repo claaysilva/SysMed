@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Calendar from "../components/Calendar";
 import type { CalendarEvent } from "../components/Calendar";
-import { useToast } from "../hooks/useToast";
+import { useToast } from "../contexts/toastContextBase";
 import ConfirmationModal from "../components/ConfirmationModal";
 
 const AgendaPage: React.FC = () => {
