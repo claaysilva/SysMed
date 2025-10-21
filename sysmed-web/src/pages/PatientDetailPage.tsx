@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { formatCPF, formatPhone } from "../hooks/useFormValidation";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { apiRequest } from "../services/api";
 import Card from "../components/Card";
 import { StatusBadge } from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -42,10 +44,22 @@ interface RecordEntry {
     user: { name: string };
 }
 
-interface Appointment {
+interface AppointmentApiItem {
     id: number;
-    data_consulta: string;
-    hora_consulta: string;
+    patient_id: number;
+    user_id: number;
+    data_hora_inicio: string;
+    data_hora_fim: string;
+    status: "agendado" | "confirmado" | "realizado" | "cancelado" | "faltou";
+    observacoes?: string;
+    tipo_consulta?: "consulta" | "retorno" | "emergencia" | "exame";
+    user?: { id: number; name: string };
+}
+
+interface AppointmentUIItem {
+    id: number;
+    data_consulta: string; // yyyy-mm-dd
+    hora_consulta: string; // HH:mm
     medico: string;
     status: "agendada" | "realizada" | "cancelada";
     observacoes?: string;
@@ -57,7 +71,7 @@ const PatientDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const [patient, setPatient] = useState<Patient | null>(null);
     const [entries, setEntries] = useState<RecordEntry[]>([]);
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [appointments, setAppointments] = useState<AppointmentUIItem[]>([]);
     const [newEntryContent, setNewEntryContent] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -97,9 +111,9 @@ const PatientDetailPage: React.FC = () => {
             setPatient({
                 ...(patientData as Patient),
                 status: (patientData?.status as Patient["status"]) ?? "ativo",
-                telefone: patientData?.telefone || "(11) 99999-9999",
-                email: patientData?.email || "paciente@email.com",
-                endereco: patientData?.endereco || "Endereço não informado",
+                telefone: patientData?.telefone,
+                email: patientData?.email,
+                endereco: patientData?.endereco,
             });
 
             // Buscar entradas do prontuário
@@ -117,36 +131,56 @@ const PatientDetailPage: React.FC = () => {
                 : (entriesPayload as RecordEntry[]);
             setEntries(entriesList);
 
-            // Simular dados de consultas
-            const mockAppointments: Appointment[] = [
-                {
-                    id: 1,
-                    data_consulta: "2025-09-15",
-                    hora_consulta: "14:30",
-                    medico: "Dr. João Silva",
-                    status: "realizada",
-                    observacoes:
-                        "Consulta de rotina - paciente apresentando melhora",
-                },
-                {
-                    id: 2,
-                    data_consulta: "2025-08-20",
-                    hora_consulta: "10:00",
-                    medico: "Dra. Maria Santos",
-                    status: "realizada",
-                    observacoes: "Exame preventivo",
-                },
-                {
-                    id: 3,
-                    data_consulta: "2025-09-25",
-                    hora_consulta: "16:00",
-                    medico: "Dr. João Silva",
-                    status: "agendada",
-                    observacoes: "Retorno - verificar resultados de exames",
-                },
-            ];
+            // Buscar consultas reais do paciente
+            const apptsResp = await apiRequest.get<{
+                success?: boolean;
+                data?: AppointmentApiItem[];
+                pagination?: unknown;
+            }>("/appointments", {
+                patient_id: patientId,
+                sort_by: "data_hora_inicio",
+                sort_order: "desc",
+                per_page: 100,
+            });
 
-            setAppointments(mockAppointments);
+            const apiItems: AppointmentApiItem[] = Array.isArray(
+                apptsResp?.data
+            )
+                ? (apptsResp.data as AppointmentApiItem[])
+                : [];
+
+            const uiItems: AppointmentUIItem[] = apiItems.map((a) => {
+                const start = new Date(a.data_hora_inicio);
+                const dateStr = start.toISOString().slice(0, 10);
+                const timeStr = start
+                    .toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                    })
+                    .slice(0, 5);
+                const medico = a.user?.name || "Médico";
+                const statusMap: Record<
+                    AppointmentApiItem["status"],
+                    AppointmentUIItem["status"]
+                > = {
+                    agendado: "agendada",
+                    confirmado: "agendada",
+                    realizado: "realizada",
+                    cancelado: "cancelada",
+                    faltou: "cancelada",
+                };
+                return {
+                    id: a.id,
+                    data_consulta: dateStr,
+                    hora_consulta: timeStr,
+                    medico,
+                    status: statusMap[a.status],
+                    observacoes: a.observacoes,
+                };
+            });
+
+            setAppointments(uiItems);
         } catch (error) {
             console.error("Erro ao buscar dados do paciente:", error);
             navigate("/patients");
@@ -575,7 +609,7 @@ const PatientDetailPage: React.FC = () => {
                                     CPF
                                 </label>
                                 <span style={{ color: "#111827" }}>
-                                    {patient.formatted_cpf || patient.cpf}
+                                    {patient.cpf ? formatCPF(patient.cpf) : "—"}
                                 </span>
                             </div>
                             <div>
@@ -631,8 +665,9 @@ const PatientDetailPage: React.FC = () => {
                                     Telefone
                                 </label>
                                 <span style={{ color: "#111827" }}>
-                                    {patient.formatted_phone ||
-                                        patient.telefone}
+                                    {patient.telefone
+                                        ? formatPhone(patient.telefone)
+                                        : "—"}
                                 </span>
                             </div>
                             <div>
@@ -648,7 +683,7 @@ const PatientDetailPage: React.FC = () => {
                                     Email
                                 </label>
                                 <span style={{ color: "#111827" }}>
-                                    {patient.email}
+                                    {patient.email || "—"}
                                 </span>
                             </div>
                             <div>
@@ -664,7 +699,7 @@ const PatientDetailPage: React.FC = () => {
                                     Endereço
                                 </label>
                                 <span style={{ color: "#111827" }}>
-                                    {patient.endereco}
+                                    {patient.endereco || "—"}
                                 </span>
                             </div>
                         </div>

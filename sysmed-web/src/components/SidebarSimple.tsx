@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     HomeIcon,
@@ -8,8 +8,7 @@ import {
     ChartPieIcon,
     CogIcon,
     ArrowRightOnRectangleIcon,
-    ChevronLeftIcon,
-    Bars3Icon,
+    ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarSimpleProps {
@@ -42,6 +41,11 @@ const SidebarSimple: React.FC<SidebarSimpleProps> = ({
             icon: DocumentTextIcon,
         },
         { path: "/reports", label: "Relatórios", icon: ChartPieIcon },
+        {
+            path: "/users-permissions",
+            label: "Usuários",
+            icon: ShieldCheckIcon,
+        },
         { path: "/settings", label: "Configurações", icon: CogIcon },
     ];
 
@@ -63,6 +67,17 @@ const SidebarSimple: React.FC<SidebarSimpleProps> = ({
 
     const sidebarWidth = isSidebarCollapsed && !isMobile ? "w-16" : "w-48";
     const isVisible = isMobile ? isMobileMenuOpen : true;
+
+    // Fecha ao clicar em qualquer lugar da tela (desktop) quando o menu estiver aberto
+    useEffect(() => {
+        const handleGlobalClick = () => {
+            if (!isMobile && !isSidebarCollapsed) {
+                onToggleCollapse();
+            }
+        };
+        document.addEventListener("click", handleGlobalClick);
+        return () => document.removeEventListener("click", handleGlobalClick);
+    }, [isMobile, isSidebarCollapsed, onToggleCollapse]);
 
     return (
         <>
@@ -90,7 +105,14 @@ const SidebarSimple: React.FC<SidebarSimpleProps> = ({
                     borderRight: "1px solid #2563eb", // blue-600
                     color: "white",
                 }}
+                onMouseEnter={() => {
+                    // No desktop, abre ao passar o mouse
+                    if (!isMobile && isSidebarCollapsed) {
+                        onToggleCollapse();
+                    }
+                }}
             >
+                {/* Fechamento por clique global configurado via useEffect */}
                 {/* Header */}
                 <div
                     className={`border-b ${
@@ -119,93 +141,21 @@ const SidebarSimple: React.FC<SidebarSimpleProps> = ({
                 </div>
 
                 {/* Menu Items */}
-                <nav className="flex-1 sidebar-nav p-4">
-                    <ul className="space-y-6 list-none">
-                        {/* Botão de controle como primeiro item quando colapsado */}
-                        {!isMobile && isSidebarCollapsed && (
-                            <li className="list-none first-menu-item">
-                                <button
-                                    onClick={onToggleCollapse}
-                                    className="
-                                        w-full flex items-center rounded-lg transition-colors no-underline
-                                        p-3 justify-center
-                                        text-blue-100 hover:bg-blue-600 hover:text-white
-                                    "
-                                    style={{
-                                        border: "none",
-                                        backgroundColor: "transparent",
-                                    }}
-                                >
-                                    <Bars3Icon
-                                        className="sidebar-icon flex-shrink-0"
-                                        style={{
-                                            width: "32px",
-                                            height: "32px",
-                                        }}
-                                    />
-                                </button>
-                            </li>
-                        )}
-
-                        {/* Seta de fechar no topo quando expandido */}
-                        {!isMobile && !isSidebarCollapsed && (
-                            <li className="list-none">
-                                <div className="flex justify-end mb-2">
-                                    <button
-                                        onClick={onToggleCollapse}
-                                        className="
-                                            flex items-center justify-center rounded-lg transition-colors no-underline
-                                            p-2
-                                        "
-                                        style={{
-                                            color: "#bfdbfe", // blue-200 (mais claro)
-                                            backgroundColor: "transparent",
-                                            border: "none",
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.backgroundColor =
-                                                "#3b82f6"; // blue-500
-                                            e.currentTarget.style.color =
-                                                "white";
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.backgroundColor =
-                                                "transparent";
-                                            e.currentTarget.style.color =
-                                                "#bfdbfe"; // blue-200
-                                        }}
-                                    >
-                                        <ChevronLeftIcon
-                                            className="sidebar-icon flex-shrink-0"
-                                            style={{
-                                                width: "24px",
-                                                height: "24px",
-                                            }}
-                                        />
-                                    </button>
-                                </div>
-                            </li>
-                        )}
+                <nav className="flex-1 sidebar-nav px-4 pb-4 pt-0">
+                    <ul className="list-none" style={{ margin: 0, padding: 0 }}>
+                        {/* Removido botão de abrir/fechar; comportamento agora é por hover */}
                         {/* Itens do menu principal */}
-                        {menuItems.map((item, index) => {
+                        {menuItems.map((item) => {
                             const IconComponent = item.icon;
                             const active = isActive(item.path);
-
-                            // Ajustar espaçamento considerando se há botão de hambúrguer
-                            const hasHamburgerButton =
-                                !isMobile && isSidebarCollapsed;
-                            const isFirstItem = index === 0;
-                            const marginTop =
-                                isFirstItem && !hasHamburgerButton
-                                    ? "0"
-                                    : "24px";
 
                             return (
                                 <li
                                     key={item.path}
-                                    className="list-none"
+                                    className="list-none m-0 p-0"
                                     style={{
-                                        marginTop: marginTop,
+                                        margin: 0,
+                                        padding: 0,
                                     }}
                                 >
                                     <Link

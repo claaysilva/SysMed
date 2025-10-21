@@ -218,6 +218,15 @@ export const formatPhone = (phone: string): string => {
     return phone;
 };
 
+export const formatCEP = (cep: string): string => {
+    const clean = cep.replace(/[^\d]/g, "");
+    if (clean.length >= 8) {
+        return clean.replace(/(\d{5})(\d{3}).*/, "$1-$2");
+    }
+    // Formatação parcial enquanto digita
+    return clean.replace(/(\d{5})(\d{0,3})/, "$1-$2");
+};
+
 export const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat("pt-BR", {
         style: "currency",

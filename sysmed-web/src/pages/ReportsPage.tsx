@@ -1,15 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-    UsersIcon,
-    CalendarIcon,
-    CurrencyDollarIcon,
-    ChartBarIcon,
-    DocumentTextIcon,
-    ArrowUpIcon,
-    ArrowDownIcon,
-    FunnelIcon,
-    ArrowPathIcon,
-} from "@heroicons/react/24/outline";
+import Card, { StatsCard } from "../components/Card";
 import { useReports } from "../hooks/useReports";
 
 interface ReportFilters {
@@ -17,81 +7,7 @@ interface ReportFilters {
     end_date?: string;
 }
 
-interface StatCardProps {
-    title: string;
-    value: string | number;
-    change?: number;
-    changeType?: "positive" | "negative" | "neutral";
-    icon: React.ElementType;
-    color: string;
-}
-
-const StatCard: React.FC<StatCardProps> = ({
-    title,
-    value,
-    change,
-    changeType = "neutral",
-    icon: Icon,
-    color,
-}) => {
-    return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-                <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 mb-1">
-                        {title}
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">{value}</p>
-                    {change !== undefined && (
-                        <div
-                            className={`flex items-center mt-2 text-sm ${
-                                changeType === "positive"
-                                    ? "text-green-600"
-                                    : changeType === "negative"
-                                    ? "text-red-600"
-                                    : "text-gray-600"
-                            }`}
-                        >
-                            {changeType === "positive" && (
-                                <ArrowUpIcon className="w-4 h-4 mr-1" />
-                            )}
-                            {changeType === "negative" && (
-                                <ArrowDownIcon className="w-4 h-4 mr-1" />
-                            )}
-                            <span>{Math.abs(change)}% vs mês anterior</span>
-                        </div>
-                    )}
-                </div>
-                <div className={`p-3 rounded-lg ${color}`}>
-                    <Icon className="w-6 h-6 text-white" />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-interface ChartCardProps {
-    title: string;
-    children: React.ReactNode;
-    className?: string;
-}
-
-const ChartCard: React.FC<ChartCardProps> = ({
-    title,
-    children,
-    className = "",
-}) => {
-    return (
-        <div
-            className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 ${className}`}
-        >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {title}
-            </h3>
-            {children}
-        </div>
-    );
-};
+// Removido ChartCard/StatCard baseados em Tailwind; usamos Card/StatsCard compartilhados com estilos inline
 
 interface FilterBarProps {
     onFilterChange: (filters: ReportFilters) => void;
@@ -101,29 +17,38 @@ interface FilterBarProps {
 const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange, loading }) => {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
-    // Set default dates (current month)
+    // Datas padrão (mês atual)
     useEffect(() => {
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
         setStartDate(firstDay.toISOString().split("T")[0]);
         setEndDate(lastDay.toISOString().split("T")[0]);
     }, []);
 
-    const handleApplyFilters = () => {
-        onFilterChange({
-            start_date: startDate,
-            end_date: endDate,
-        });
+    const handleApply = () => {
+        onFilterChange({ start_date: startDate, end_date: endDate });
     };
 
-    const handleQuickFilter = (period: string) => {
+    const handleReset = () => {
         const now = new Date();
-        let start: Date;
-        let end = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const s = firstDay.toISOString().split("T")[0];
+        const e = lastDay.toISOString().split("T")[0];
+        setStartDate(s);
+        setEndDate(e);
+        onFilterChange({ start_date: s, end_date: e });
+    };
 
+    const quickPeriod = (
+        period: "today" | "week" | "month" | "quarter" | "year"
+    ) => {
+        const now = new Date();
+        let start = new Date();
+        let end = new Date();
         switch (period) {
             case "today":
                 start = new Date();
@@ -136,101 +61,259 @@ const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange, loading }) => {
                 end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
                 break;
             case "quarter": {
-                const quarter = Math.floor(now.getMonth() / 3);
-                start = new Date(now.getFullYear(), quarter * 3, 1);
-                end = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+                const q = Math.floor(now.getMonth() / 3);
+                start = new Date(now.getFullYear(), q * 3, 1);
+                end = new Date(now.getFullYear(), q * 3 + 3, 0);
                 break;
             }
             case "year":
                 start = new Date(now.getFullYear(), 0, 1);
                 end = new Date(now.getFullYear(), 11, 31);
                 break;
-            default:
-                start = new Date(now.getFullYear(), now.getMonth(), 1);
         }
-
-        const startStr = start.toISOString().split("T")[0];
-        const endStr = end.toISOString().split("T")[0];
-
-        setStartDate(startStr);
-        setEndDate(endStr);
-
-        onFilterChange({
-            start_date: startStr,
-            end_date: endStr,
-        });
+        const s = start.toISOString().split("T")[0];
+        const e = end.toISOString().split("T")[0];
+        setStartDate(s);
+        setEndDate(e);
+        onFilterChange({ start_date: s, end_date: e });
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <FunnelIcon className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">
-                        Filtros:
-                    </span>
-                </div>
-
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => handleQuickFilter("today")}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+        <Card padding="small">
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                    gap: "1rem",
+                    alignItems: "end",
+                }}
+            >
+                <div>
+                    <label
+                        style={{
+                            display: "block",
+                            fontSize: "0.875rem",
+                            fontWeight: 500,
+                            color: "#374151",
+                            marginBottom: "0.5rem",
+                        }}
                     >
-                        Hoje
-                    </button>
-                    <button
-                        onClick={() => handleQuickFilter("week")}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                        7 dias
-                    </button>
-                    <button
-                        onClick={() => handleQuickFilter("month")}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                        Este mês
-                    </button>
-                    <button
-                        onClick={() => handleQuickFilter("quarter")}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                        Trimestre
-                    </button>
-                    <button
-                        onClick={() => handleQuickFilter("year")}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                        Este ano
-                    </button>
-                </div>
-
-                <div className="flex items-center gap-2 ml-auto">
+                        Data inicial
+                    </label>
                     <input
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        style={{
+                            width: "100%",
+                            padding: "0.75rem",
+                            border: "1px solid #d1d5db",
+                            borderRadius: "8px",
+                            fontSize: "0.875rem",
+                            backgroundColor: "white",
+                        }}
                     />
-                    <span className="text-gray-400">até</span>
+                </div>
+                <div>
+                    <label
+                        style={{
+                            display: "block",
+                            fontSize: "0.875rem",
+                            fontWeight: 500,
+                            color: "#374151",
+                            marginBottom: "0.5rem",
+                        }}
+                    >
+                        Data final
+                    </label>
                     <input
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        style={{
+                            width: "100%",
+                            padding: "0.75rem",
+                            border: "1px solid #d1d5db",
+                            borderRadius: "8px",
+                            fontSize: "0.875rem",
+                            backgroundColor: "white",
+                        }}
                     />
-                    <button
-                        onClick={handleApplyFilters}
-                        disabled={loading}
-                        className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                </div>
+                <div>
+                    <label
+                        style={{
+                            display: "block",
+                            fontSize: "0.875rem",
+                            fontWeight: 500,
+                            color: "#374151",
+                            marginBottom: "0.5rem",
+                        }}
                     >
-                        {loading && (
-                            <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                        )}
-                        Aplicar
-                    </button>
+                        Ações
+                    </label>
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: "0.5rem",
+                            alignItems: "center",
+                        }}
+                    >
+                        <button
+                            onClick={handleApply}
+                            disabled={loading}
+                            style={{
+                                height: 40,
+                                paddingLeft: "0.75rem",
+                                paddingRight: "0.75rem",
+                                backgroundColor: "#3b82f6",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                fontSize: "0.875rem",
+                                fontWeight: 500,
+                                cursor: loading ? "not-allowed" : "pointer",
+                                opacity: loading ? 0.7 : 1,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "0.4rem",
+                            }}
+                            title="Aplicar filtros"
+                        >
+                            Aplicar
+                        </button>
+                        <button
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            style={{
+                                height: 40,
+                                paddingLeft: "0.75rem",
+                                paddingRight: "0.75rem",
+                                border: "1px solid #d1d5db",
+                                backgroundColor: "white",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "0.875rem",
+                                color: "#374151",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            {showAdvanced ? "− Filtros" : "+ Filtros"}
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {showAdvanced && (
+                <div
+                    style={{
+                        marginTop: "1rem",
+                        padding: "1rem",
+                        backgroundColor: "#f9fafb",
+                        borderRadius: "8px",
+                        border: "1px solid #e5e7eb",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: "0.5rem",
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <button
+                            onClick={() => quickPeriod("today")}
+                            style={{
+                                padding: "0.5rem 0.75rem",
+                                border: "1px solid #d1d5db",
+                                backgroundColor: "white",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "0.8125rem",
+                                color: "#374151",
+                            }}
+                        >
+                            Hoje
+                        </button>
+                        <button
+                            onClick={() => quickPeriod("week")}
+                            style={{
+                                padding: "0.5rem 0.75rem",
+                                border: "1px solid #d1d5db",
+                                backgroundColor: "white",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "0.8125rem",
+                                color: "#374151",
+                            }}
+                        >
+                            7 dias
+                        </button>
+                        <button
+                            onClick={() => quickPeriod("month")}
+                            style={{
+                                padding: "0.5rem 0.75rem",
+                                border: "1px solid #d1d5db",
+                                backgroundColor: "white",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "0.8125rem",
+                                color: "#374151",
+                            }}
+                        >
+                            Este mês
+                        </button>
+                        <button
+                            onClick={() => quickPeriod("quarter")}
+                            style={{
+                                padding: "0.5rem 0.75rem",
+                                border: "1px solid #d1d5db",
+                                backgroundColor: "white",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "0.8125rem",
+                                color: "#374151",
+                            }}
+                        >
+                            Trimestre
+                        </button>
+                        <button
+                            onClick={() => quickPeriod("year")}
+                            style={{
+                                padding: "0.5rem 0.75rem",
+                                border: "1px solid #d1d5db",
+                                backgroundColor: "white",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "0.8125rem",
+                                color: "#374151",
+                            }}
+                        >
+                            Este ano
+                        </button>
+                        <div style={{ marginLeft: "auto" }}>
+                            <button
+                                onClick={handleReset}
+                                style={{
+                                    padding: "0.50rem 0.75rem",
+                                    border: "1px solid #d1d5db",
+                                    backgroundColor: "white",
+                                    borderRadius: "8px",
+                                    cursor: "pointer",
+                                    fontSize: "0.875rem",
+                                    color: "#374151",
+                                }}
+                            >
+                                Limpar Filtros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </Card>
     );
 };
 
@@ -262,31 +345,64 @@ const ReportsPage: React.FC = () => {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gray-50 p-6">
-                <div className="max-w-7xl mx-auto">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="flex">
-                            <div className="ml-3">
-                                <h3 className="text-sm font-medium text-red-800">
+            <div
+                style={{
+                    minHeight: "100vh",
+                    backgroundColor: "#f8fafc",
+                    padding: "2rem",
+                }}
+            >
+                <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+                    <Card padding="small">
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "1rem",
+                            }}
+                        >
+                            <div>
+                                <h3
+                                    style={{
+                                        fontSize: "0.875rem",
+                                        fontWeight: 600,
+                                        color: "#b91c1c",
+                                        margin: 0,
+                                    }}
+                                >
                                     Erro ao carregar relatórios
                                 </h3>
-                                <div className="mt-2 text-sm text-red-700">
-                                    <p>{error}</p>
-                                </div>
-                                <div className="mt-4">
+                                <p
+                                    style={{
+                                        marginTop: "0.5rem",
+                                        fontSize: "0.875rem",
+                                        color: "#991b1b",
+                                    }}
+                                >
+                                    {error}
+                                </p>
+                                <div style={{ marginTop: "0.75rem" }}>
                                     <button
                                         onClick={() => {
                                             clearError();
                                             fetchDashboardStats();
                                         }}
-                                        className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200 transition-colors"
+                                        style={{
+                                            padding: "0.5rem 0.75rem",
+                                            backgroundColor: "#fee2e2",
+                                            color: "#991b1b",
+                                            border: "1px solid #fecaca",
+                                            borderRadius: "8px",
+                                            cursor: "pointer",
+                                            fontSize: "0.875rem",
+                                        }}
                                     >
                                         Tentar novamente
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 </div>
             </div>
         );
@@ -294,18 +410,60 @@ const ReportsPage: React.FC = () => {
 
     if (loading && !dashboardStats) {
         return (
-            <div className="min-h-screen bg-gray-50 p-6">
-                <div className="max-w-7xl mx-auto">
-                    <div className="animate-pulse">
-                        <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div
+                style={{
+                    minHeight: "100vh",
+                    backgroundColor: "#f8fafc",
+                    padding: "2rem",
+                }}
+            >
+                <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+                    <div>
+                        <div
+                            style={{
+                                height: 32,
+                                backgroundColor: "#e5e7eb",
+                                borderRadius: 8,
+                                width: "25%",
+                                marginBottom: "1.5rem",
+                            }}
+                        />
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                    "repeat(auto-fit, minmax(220px, 1fr))",
+                                gap: "1rem",
+                                marginBottom: "1.5rem",
+                            }}
+                        >
                             {[...Array(4)].map((_, i) => (
                                 <div
                                     key={i}
-                                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                                    style={{
+                                        backgroundColor: "white",
+                                        border: "1px solid #e5e7eb",
+                                        borderRadius: 12,
+                                        padding: "1.5rem",
+                                    }}
                                 >
-                                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                                    <div className="h-8 bg-gray-300 rounded w-1/2"></div>
+                                    <div
+                                        style={{
+                                            height: 16,
+                                            backgroundColor: "#e5e7eb",
+                                            borderRadius: 6,
+                                            width: "75%",
+                                            marginBottom: 8,
+                                        }}
+                                    />
+                                    <div
+                                        style={{
+                                            height: 28,
+                                            backgroundColor: "#e5e7eb",
+                                            borderRadius: 6,
+                                            width: "50%",
+                                        }}
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -316,19 +474,38 @@ const ReportsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl mx-auto">
+        <div
+            style={{
+                padding: "2rem",
+                backgroundColor: "#f8fafc",
+                minHeight: "100vh",
+            }}
+        >
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
                 {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <div style={{ marginBottom: "1.5rem" }}>
+                    <h1
+                        style={{
+                            fontSize: "2rem",
+                            fontWeight: 700,
+                            color: "#111827",
+                            margin: 0,
+                        }}
+                    >
                         Relatórios e Estatísticas
                     </h1>
-                    <p className="text-gray-600">
+                    <p
+                        style={{
+                            fontSize: "1rem",
+                            color: "#6b7280",
+                            margin: "0.5rem 0 0 0",
+                        }}
+                    >
                         Acompanhe o desempenho da sua clínica em tempo real
                     </p>
                 </div>
 
-                {/* Filters */}
+                {/* Filtros */}
                 <FilterBar
                     onFilterChange={handleFilterChange}
                     loading={refreshing}
@@ -337,135 +514,250 @@ const ReportsPage: React.FC = () => {
                 {dashboardStats && (
                     <>
                         {/* Overview Stats */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                            <StatCard
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                    "repeat(auto-fit, minmax(220px, 1fr))",
+                                gap: "1rem",
+                                marginTop: "1rem",
+                                marginBottom: "2rem",
+                            }}
+                        >
+                            <StatsCard
                                 title="Total de Pacientes"
                                 value={formatNumber(
                                     dashboardStats.overview.totalPatients
                                 )}
-                                change={12}
-                                changeType="positive"
-                                icon={UsersIcon}
-                                color="bg-blue-500"
+                                subtitle="vs mês anterior"
+                                trend={{ value: 12, direction: "up" }}
+                                color="blue"
                             />
-                            <StatCard
+                            <StatsCard
                                 title="Consultas Hoje"
                                 value={formatNumber(
                                     dashboardStats.overview.appointmentsToday
                                 )}
-                                change={8}
-                                changeType="positive"
-                                icon={CalendarIcon}
-                                color="bg-green-500"
+                                subtitle="vs mês anterior"
+                                trend={{ value: 8, direction: "up" }}
+                                color="green"
                             />
-                            <StatCard
+                            <StatsCard
                                 title="Receita do Mês"
                                 value={formatCurrency(
                                     dashboardStats.revenue.totalThisMonth
                                 )}
-                                change={15}
-                                changeType="positive"
-                                icon={CurrencyDollarIcon}
-                                color="bg-purple-500"
+                                subtitle="vs mês anterior"
+                                trend={{ value: 15, direction: "up" }}
+                                color="purple"
                             />
-                            <StatCard
+                            <StatsCard
                                 title="Taxa de Comparecimento"
                                 value={`${dashboardStats.performance.attendanceRate}%`}
-                                change={5}
-                                changeType="positive"
-                                icon={ChartBarIcon}
-                                color="bg-indigo-500"
+                                subtitle="vs mês anterior"
+                                trend={{ value: 5, direction: "up" }}
+                                color="blue"
                             />
                         </div>
 
                         {/* Secondary Stats */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <StatCard
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                    "repeat(auto-fit, minmax(260px, 1fr))",
+                                gap: "1rem",
+                                marginBottom: "2rem",
+                            }}
+                        >
+                            <StatsCard
                                 title="Novos Pacientes (Mês)"
                                 value={formatNumber(
                                     dashboardStats.overview.newPatientsThisMonth
                                 )}
-                                icon={UsersIcon}
-                                color="bg-cyan-500"
+                                color="blue"
                             />
-                            <StatCard
+                            <StatsCard
                                 title="Consultas da Semana"
                                 value={formatNumber(
                                     dashboardStats.overview.appointmentsThisWeek
                                 )}
-                                icon={CalendarIcon}
-                                color="bg-emerald-500"
+                                color="green"
                             />
-                            <StatCard
+                            <StatsCard
                                 title="Prontuários Criados"
                                 value={formatNumber(
                                     dashboardStats.overview.recordsThisMonth
                                 )}
-                                icon={DocumentTextIcon}
-                                color="bg-amber-500"
+                                color="yellow"
                             />
                         </div>
 
                         {/* Charts Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                            <ChartCard title="Consultas por Status">
-                                <div className="space-y-3">
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                    "repeat(auto-fit, minmax(320px, 1fr))",
+                                gap: "1rem",
+                                marginBottom: "2rem",
+                            }}
+                        >
+                            <Card title="Consultas por Status" padding="medium">
+                                <div>
                                     {dashboardStats.appointments.byStatus.map(
                                         (item, index) => (
                                             <div
                                                 key={index}
-                                                className="flex items-center justify-between"
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent:
+                                                        "space-between",
+                                                    padding: "0.5rem 0",
+                                                    borderBottom:
+                                                        index <
+                                                        dashboardStats
+                                                            .appointments
+                                                            .byStatus.length -
+                                                            1
+                                                            ? "1px solid #f3f4f6"
+                                                            : "none",
+                                                }}
                                             >
-                                                <span className="text-sm font-medium text-gray-700 capitalize">
+                                                <span
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        fontWeight: 500,
+                                                        color: "#374151",
+                                                        textTransform:
+                                                            "capitalize",
+                                                    }}
+                                                >
                                                     {item.status ||
                                                         "Não informado"}
                                                 </span>
-                                                <span className="text-sm font-bold text-gray-900">
+                                                <span
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        fontWeight: 700,
+                                                        color: "#111827",
+                                                    }}
+                                                >
                                                     {formatNumber(item.total)}
                                                 </span>
                                             </div>
                                         )
                                     )}
                                 </div>
-                            </ChartCard>
+                            </Card>
 
-                            <ChartCard title="Consultas por Tipo">
-                                <div className="space-y-3">
+                            <Card title="Consultas por Tipo" padding="medium">
+                                <div>
                                     {dashboardStats.appointments.byType
                                         .slice(0, 5)
                                         .map((item, index) => (
                                             <div
                                                 key={index}
-                                                className="flex items-center justify-between"
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent:
+                                                        "space-between",
+                                                    padding: "0.5rem 0",
+                                                    borderBottom:
+                                                        index <
+                                                        Math.min(
+                                                            5,
+                                                            dashboardStats
+                                                                .appointments
+                                                                .byType.length
+                                                        ) -
+                                                            1
+                                                            ? "1px solid #f3f4f6"
+                                                            : "none",
+                                                }}
                                             >
-                                                <span className="text-sm font-medium text-gray-700">
+                                                <span
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        fontWeight: 500,
+                                                        color: "#374151",
+                                                    }}
+                                                >
                                                     {item.tipo_consulta ||
                                                         "Não informado"}
                                                 </span>
-                                                <span className="text-sm font-bold text-gray-900">
+                                                <span
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        fontWeight: 700,
+                                                        color: "#111827",
+                                                    }}
+                                                >
                                                     {formatNumber(item.total)}
                                                 </span>
                                             </div>
                                         ))}
                                 </div>
-                            </ChartCard>
+                            </Card>
                         </div>
 
                         {/* Performance Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <ChartCard title="Produtividade por Médico">
-                                <div className="space-y-3">
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                    "repeat(auto-fit, minmax(320px, 1fr))",
+                                gap: "1rem",
+                            }}
+                        >
+                            <Card
+                                title="Produtividade por Médico"
+                                padding="medium"
+                            >
+                                <div>
                                     {dashboardStats.performance.doctorProductivity
                                         .slice(0, 5)
                                         .map((doctor, index) => (
                                             <div
                                                 key={index}
-                                                className="flex items-center justify-between"
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent:
+                                                        "space-between",
+                                                    padding: "0.5rem 0",
+                                                    borderBottom:
+                                                        index <
+                                                        Math.min(
+                                                            5,
+                                                            dashboardStats
+                                                                .performance
+                                                                .doctorProductivity
+                                                                .length
+                                                        ) -
+                                                            1
+                                                            ? "1px solid #f3f4f6"
+                                                            : "none",
+                                                }}
                                             >
-                                                <span className="text-sm font-medium text-gray-700">
+                                                <span
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        fontWeight: 500,
+                                                        color: "#374151",
+                                                    }}
+                                                >
                                                     {doctor.name}
                                                 </span>
-                                                <span className="text-sm font-bold text-gray-900">
+                                                <span
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        fontWeight: 700,
+                                                        color: "#111827",
+                                                    }}
+                                                >
                                                     {formatNumber(
                                                         doctor.appointments
                                                     )}{" "}
@@ -474,15 +766,39 @@ const ReportsPage: React.FC = () => {
                                             </div>
                                         ))}
                                 </div>
-                            </ChartCard>
+                            </Card>
 
-                            <ChartCard title="Performance Geral">
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-700">
+                            <Card title="Performance Geral" padding="medium">
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "1rem",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 500,
+                                                color: "#374151",
+                                            }}
+                                        >
                                             Taxa de Comparecimento
                                         </span>
-                                        <span className="text-sm font-bold text-green-600">
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 700,
+                                                color: "#059669",
+                                            }}
+                                        >
                                             {
                                                 dashboardStats.performance
                                                     .attendanceRate
@@ -490,11 +806,29 @@ const ReportsPage: React.FC = () => {
                                             %
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-700">
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 500,
+                                                color: "#374151",
+                                            }}
+                                        >
                                             Tempo Médio de Consulta
                                         </span>
-                                        <span className="text-sm font-bold text-gray-900">
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 700,
+                                                color: "#111827",
+                                            }}
+                                        >
                                             {
                                                 dashboardStats.performance
                                                     .avgConsultationTime
@@ -502,22 +836,58 @@ const ReportsPage: React.FC = () => {
                                             min
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-700">
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 500,
+                                                color: "#374151",
+                                            }}
+                                        >
                                             Valor Médio por Consulta
                                         </span>
-                                        <span className="text-sm font-bold text-gray-900">
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 700,
+                                                color: "#111827",
+                                            }}
+                                        >
                                             {formatCurrency(
                                                 dashboardStats.revenue
                                                     .averagePerAppointment
                                             )}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-700">
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 500,
+                                                color: "#374151",
+                                            }}
+                                        >
                                             Satisfação do Paciente
                                         </span>
-                                        <span className="text-sm font-bold text-yellow-600">
+                                        <span
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 700,
+                                                color: "#ca8a04",
+                                            }}
+                                        >
                                             {
                                                 dashboardStats.performance
                                                     .patientSatisfaction
@@ -526,7 +896,7 @@ const ReportsPage: React.FC = () => {
                                         </span>
                                     </div>
                                 </div>
-                            </ChartCard>
+                            </Card>
                         </div>
                     </>
                 )}

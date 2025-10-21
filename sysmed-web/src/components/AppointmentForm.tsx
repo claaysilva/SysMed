@@ -9,6 +9,8 @@ import { ptBR } from "date-fns/locale";
 // registra locale pt-BR para o react-datepicker
 registerLocale("pt-BR", ptBR);
 import { apiRequest } from "../services/api";
+import { useToast } from "../hooks/useToast";
+import { ApiErrorHandler } from "../utils/errorHandler";
 
 interface Appointment {
     id?: number;
@@ -40,12 +42,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     initialStart,
     initialEnd,
 }) => {
+    const { showError } = useToast();
     const {
         createAppointment,
         updateAppointment,
         loading,
-        error,
         getAvailableSlots,
+        clearError,
     } = useAppointments();
     const { patients, loading: patientsLoading } = usePatients();
 
@@ -96,6 +99,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         }
         return times;
     };
+
+    // Limpar erros residuais do hook ao abrir/montar o formulário
+    useEffect(() => {
+        try {
+            clearError?.();
+        } catch {
+            // noop: apenas garantindo que erro antigo não apareça ao abrir
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const syncDateTimeToFormData = (dateStr: string, timeStr: string) => {
         if (!dateStr || !timeStr) return;
@@ -354,8 +367,70 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
             onSubmit();
         } catch (err) {
-            // Erro já tratado no hook como mensagem amigável
+            // Erro já tratado no hook como mensagem amigável, mas vamos
+            // destacar conflito de horário no campo de horário e atualizar slots
             console.error(err);
+            const unknownErr = err as {
+                apiError?: { message?: string; status?: number; code?: string };
+                message?: string;
+            };
+            const apiErr = unknownErr?.apiError;
+            const rawMsg: string = apiErr?.message || unknownErr?.message || "";
+            const isTimeConflict =
+                apiErr?.code === "TIME_CONFLICT" ||
+                (apiErr?.status === 422 &&
+                    typeof rawMsg === "string" &&
+                    rawMsg.toLowerCase().includes("conflito"));
+
+            if (isTimeConflict) {
+                setFormErrors((prev) => ({
+                    ...prev,
+                    data_hora_inicio:
+                        "Horário já ocupado. Escolha outro horário.",
+                }));
+                showError("Horário já ocupado. Escolha outro horário.");
+                // Recarregar horários disponíveis (pode ter sido ocupado por outra sessão)
+                if (formData.user_id && dateOnly) {
+                    try {
+                        setLoadingTimes(true);
+                        const slots = await getAvailableSlots(
+                            Number(formData.user_id),
+                            dateOnly
+                        );
+                        const now = new Date();
+                        const isToday = dateOnly === todayStr;
+                        const filtered = Array.isArray(slots)
+                            ? slots
+                                  .filter((t) => {
+                                      const [, mm] = t
+                                          .split(":")
+                                          .map((n) => parseInt(n, 10));
+                                      return mm % 30 === 0;
+                                  })
+                                  .filter((t) => {
+                                      if (!isToday) return true;
+                                      const [hh, mm] = t
+                                          .split(":")
+                                          .map((n) => parseInt(n, 10));
+                                      const d = new Date(
+                                          dateOnly + "T00:00:00"
+                                      );
+                                      d.setHours(hh, mm, 0, 0);
+                                      return d >= now;
+                                  })
+                            : [];
+                        setServerTimes(filtered);
+                    } catch {
+                        // silencioso
+                    } finally {
+                        setLoadingTimes(false);
+                    }
+                }
+            } else {
+                // Exibir erro genérico amigável
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                showError(friendly || "Não foi possível salvar o agendamento.");
+            }
         }
     };
 
@@ -386,31 +461,23 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
     return (
         <div className="bg-white rounded-lg p-6 max-w-2xl mx-auto">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                {appointment ? "Editar Consulta" : "Nova Consulta"}
-            </h2>
+            {/* Título removido para não duplicar com o título do Modal */}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                        <p className="text-sm text-red-600">{error}</p>
-                    </div>
-                )}
-
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Médico *
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Médico
                         </label>
                         <select
                             name="user_id"
                             value={formData.user_id}
                             onChange={handleChange}
                             required
-                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                                 formErrors.user_id
-                                    ? "border-red-500"
-                                    : "border-gray-300"
+                                    ? "border-red-400"
+                                    : "border-gray-200"
                             }`}
                         >
                             <option value="">Selecione um médico</option>
@@ -427,18 +494,18 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         )}
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Paciente *
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Paciente
                         </label>
                         <select
                             name="patient_id"
                             value={formData.patient_id}
                             onChange={handleChange}
                             required
-                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                                 formErrors.patient_id
-                                    ? "border-red-500"
-                                    : "border-gray-300"
+                                    ? "border-red-400"
+                                    : "border-gray-200"
                             }`}
                             disabled={patientsLoading}
                         >
@@ -461,14 +528,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             Tipo de Consulta
                         </label>
                         <select
                             name="tipo_consulta"
                             value={formData.tipo_consulta}
                             onChange={handleChange}
-                            className="w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            className="w-full rounded-md border border-gray-200 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
                         >
                             <option value="consulta">Consulta</option>
                             <option value="retorno">Retorno</option>
@@ -478,8 +545,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Data do Atendimento *
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Data do Atendimento
                         </label>
                         <DatePicker
                             selected={
@@ -498,26 +565,26 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             locale="pt-BR"
                             dateFormat="dd/MM/yyyy"
                             calendarStartDay={1}
-                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                                 formErrors.data_hora_inicio
-                                    ? "border-red-500"
-                                    : "border-gray-300"
+                                    ? "border-red-400"
+                                    : "border-gray-200"
                             }`}
                             placeholderText="Selecione a data"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Horário de Início *
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Horário de Início
                         </label>
                         <select
                             value={timeOnly}
                             onChange={(e) => setTimeOnly(e.target.value)}
-                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                                 formErrors.data_hora_inicio
-                                    ? "border-red-500"
-                                    : "border-gray-300"
+                                    ? "border-red-400"
+                                    : "border-gray-200"
                             }`}
                             disabled={!dateOnly}
                         >
@@ -539,7 +606,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             Valor (R$)
                         </label>
                         <input
@@ -549,14 +616,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             onChange={handleChange}
                             step="0.01"
                             min="0"
-                            className="w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            className="w-full rounded-md border border-gray-200 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
                             placeholder="0,00"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Observações
                     </label>
                     <textarea
@@ -564,7 +631,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         value={formData.observacoes}
                         onChange={handleChange}
                         rows={3}
-                        className="w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="w-full rounded-md border border-gray-200 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
                         placeholder="Observações sobre a consulta..."
                     />
                 </div>
@@ -575,13 +642,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </div>
                 )}
 
-                <div className="text-xs text-gray-500">
-                    Funcionamento: Seg–Sex 08:00–18:00 (último início 17:30),
-                    Sáb 08:00–11:00 (último início 10:30). Domingo fechado.
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-6 border-t">
-                    <Button variant="outline" onClick={onCancel} type="button">
+                <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
+                    <Button
+                        variant="outline"
+                        onClick={onCancel}
+                        type="button"
+                        className="!border-gray-200"
+                    >
                         Cancelar
                     </Button>
                     <Button type="submit" loading={loading}>

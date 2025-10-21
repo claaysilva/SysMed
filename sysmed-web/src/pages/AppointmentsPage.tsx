@@ -172,10 +172,10 @@ const AppointmentsPage: React.FC = () => {
                     <Button
                         onClick={handleCreateAppointment}
                         variant="primary"
-                        size="md"
+                        size="sm"
                         className="bg-blue-600 hover:bg-blue-700"
                     >
-                        <Plus size={16} style={{ marginRight: "0.5rem" }} />
+                        <Plus size={14} style={{ marginRight: "0.4rem" }} />
                         Novo Agendamento
                     </Button>
                 </div>

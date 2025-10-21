@@ -124,7 +124,7 @@ const DiagnosisForm: React.FC<DiagnosisFormProps> = ({
                             value={formData.code_icd10}
                             onChange={handleChange}
                             placeholder="Ex: M54.5"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                         <p className="text-xs text-gray-500 mt-1">
                             Opcional - Código de classificação internacional
@@ -142,7 +142,7 @@ const DiagnosisForm: React.FC<DiagnosisFormProps> = ({
                             onChange={handleChange}
                             required
                             placeholder="Ex: Dorsalgia não especificada"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                     </div>
                 </div>
@@ -157,7 +157,7 @@ const DiagnosisForm: React.FC<DiagnosisFormProps> = ({
                             name="type"
                             value={formData.type}
                             onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         >
                             <option value="primary">
                                 {getTypeLabel("primary")}
@@ -179,7 +179,7 @@ const DiagnosisForm: React.FC<DiagnosisFormProps> = ({
                             name="status"
                             value={formData.status}
                             onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         >
                             <option value="active">
                                 {getStatusLabel("active")}
@@ -239,7 +239,7 @@ const DiagnosisForm: React.FC<DiagnosisFormProps> = ({
                         name="severity"
                         value={formData.severity}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     >
                         <option value="">Não especificado</option>
                         <option value="mild">{getSeverityLabel("mild")}</option>
@@ -263,7 +263,7 @@ const DiagnosisForm: React.FC<DiagnosisFormProps> = ({
                         onChange={handleChange}
                         rows={3}
                         placeholder="Informações complementares sobre o diagnóstico..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                 </div>
 
@@ -288,14 +288,14 @@ const DiagnosisForm: React.FC<DiagnosisFormProps> = ({
                         type="button"
                         onClick={onCancel}
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
                     >
                         Cancelar
                     </button>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading
                             ? "Salvando..."

@@ -102,9 +102,6 @@ const Select: React.FC<SelectProps> = ({
         <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
                 {label}
-                {validationRules.required && (
-                    <span className="text-red-500 ml-1">*</span>
-                )}
             </label>
 
             <div className="relative">
@@ -118,7 +115,7 @@ const Select: React.FC<SelectProps> = ({
                         ${
                             showError
                                 ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                                : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                                : "border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
                         }
                         ${className}
                     `}

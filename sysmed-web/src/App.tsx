@@ -5,13 +5,14 @@ import LoginPage from "./pages/LoginPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import PatientsPage from "./pages/PatientsPage.tsx";
 import AppointmentsPage from "./pages/AppointmentsPageNew.tsx";
-import SchedulePage from "./pages/SchedulePage.tsx";
 import PatientDetailPage from "./pages/PatientDetailPage.tsx";
 import MedicalRecordsPage from "./pages/MedicalRecordsPageNew.tsx";
 import MedicalRecordDetailPage from "./pages/MedicalRecordDetailPage.tsx";
 import MedicalRecordFormPage from "./pages/MedicalRecordFormPage.tsx";
 import ReportsPage from "./pages/ReportsPage.tsx";
 import LoginQuickPage from "./pages/LoginQuickPage.tsx";
+import SettingsPage from "./pages/SettingsPage.tsx";
+import UsersPermissionsPage from "./pages/UsersPermissionsPage.tsx";
 
 function App() {
     return (
@@ -37,7 +38,6 @@ function App() {
                     element={<PatientDetailPage />}
                 />
                 <Route path="/schedule" element={<AppointmentsPage />} />
-                <Route path="/calendar" element={<SchedulePage />} />
                 <Route
                     path="/medical-records"
                     element={<MedicalRecordsPage />}
@@ -55,6 +55,12 @@ function App() {
                     element={<MedicalRecordFormPage />}
                 />
                 <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route
+                    path="/users-permissions"
+                    element={<UsersPermissionsPage />}
+                />
+                {/** Rota de atividades removida */}
             </Route>
         </Routes>
     );

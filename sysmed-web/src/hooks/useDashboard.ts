@@ -51,19 +51,8 @@ interface DashboardStats {
     }>;
 }
 
-interface RecentActivity {
-    type: string;
-    title: string;
-    description: string;
-    created_at: string;
-    user: string;
-    icon: string;
-    color: string;
-}
-
 export const useDashboard = () => {
     const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -106,22 +95,6 @@ export const useDashboard = () => {
             }
 
             setStats(statsData.data);
-
-            // Buscar atividades recentes
-            const activityResponse = await fetch(
-                "http://localhost:8000/api/dashboard/recent-activity?limit=8",
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (activityResponse.ok) {
-                const activityData = await activityResponse.json();
-                setRecentActivity(activityData.data);
-            }
         } catch (err: unknown) {
             const errorMessage =
                 err instanceof Error ? err.message : "Erro desconhecido";
@@ -142,7 +115,6 @@ export const useDashboard = () => {
 
     return {
         stats,
-        recentActivity,
         loading,
         error,
         refreshData,

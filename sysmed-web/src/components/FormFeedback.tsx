@@ -77,7 +77,7 @@ export const LoadingButton: React.FC<LoadingButtonProps> = ({
                 ${
                     loading || disabled
                         ? "bg-gray-300 cursor-not-allowed text-gray-500"
-                        : "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500"
                 }
                 ${className}
             `}
@@ -207,10 +207,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 };
             case "info":
                 return {
-                    bg: "bg-blue-50",
-                    iconColor: "text-blue-600",
+                    bg: "bg-emerald-50",
+                    iconColor: "text-emerald-600",
                     buttonColor:
-                        "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
+                        "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500",
                 };
         }
     };

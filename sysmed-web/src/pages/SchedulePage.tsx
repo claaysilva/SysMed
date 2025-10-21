@@ -9,6 +9,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addMinutes } from "date-fns";
 import type { DateClickArg } from "@fullcalendar/interaction";
+import type { DatesSetArg } from "@fullcalendar/core";
 
 interface CalendarEvent {
     id: string;
@@ -38,11 +39,13 @@ interface SelectInfo {
 const SchedulePage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const [events, setEvents] = useState<CalendarEvent[]>([]);
+    const calendarWrapRef = React.useRef<HTMLDivElement | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDates, setSelectedDates] = useState<{
         start: string;
         end: string;
     }>();
+    const [slotMaxTime, setSlotMaxTime] = useState<string>("18:00:00");
 
     const fetchAppointments = async () => {
         try {
@@ -178,6 +181,7 @@ const SchedulePage: React.FC = () => {
                     boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                     border: "1px solid #e0e0e0",
                 }}
+                ref={calendarWrapRef}
             >
                 <FullCalendar
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -210,11 +214,21 @@ const SchedulePage: React.FC = () => {
                         start: format(new Date(), "yyyy-LL-dd"),
                     }}
                     hiddenDays={[0]}
-                    slotMinTime="07:00:00"
-                    slotMaxTime="19:00:00"
+                    slotMinTime="08:00:00"
+                    slotMaxTime={slotMaxTime}
                     allDaySlot={false}
                     slotDuration="00:30:00"
                     slotLabelInterval="00:30:00"
+                    slotLabelFormat={{
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                    }}
+                    eventTimeFormat={{
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                    }}
                     businessHours={[
                         {
                             daysOfWeek: [1, 2, 3, 4, 5],
@@ -227,6 +241,41 @@ const SchedulePage: React.FC = () => {
                             endTime: "11:00",
                         },
                     ]}
+                    datesSet={(arg: DatesSetArg) => {
+                        const viewType = arg.view.type;
+                        const vm =
+                            viewType === "dayGridMonth"
+                                ? "month"
+                                : viewType === "timeGridDay"
+                                ? "day"
+                                : "week";
+                        const d = arg.start;
+                        const desiredMax =
+                            vm === "day" && d.getDay() === 6
+                                ? "11:00:00"
+                                : "18:00:00";
+                        if (desiredMax !== slotMaxTime) {
+                            setSlotMaxTime(desiredMax);
+                        }
+
+                        // Tooltips nas áreas não permitidas
+                        setTimeout(() => {
+                            const root = calendarWrapRef.current;
+                            if (!root) return;
+                            root.querySelectorAll<HTMLElement>(
+                                ".fc-non-business"
+                            ).forEach((el) => {
+                                el.setAttribute("title", "Fora do expediente");
+                            });
+                            root.querySelectorAll<HTMLElement>(
+                                ".fc-timegrid .fc-day-past .fc-timegrid-slot, .fc-daygrid .fc-day-past"
+                            ).forEach((el) => {
+                                if (!el.getAttribute("title")) {
+                                    el.setAttribute("title", "Dia passado");
+                                }
+                            });
+                        }, 0);
+                    }}
                 />
             </div>
 

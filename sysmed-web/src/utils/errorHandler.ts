@@ -72,16 +72,38 @@ export class ApiErrorHandler {
                 };
             }
 
-            // Erro 422 - Validação
+            // Erro 422 - Validação/negócio
             if (status === 422) {
                 const validationErrors = data.errors || {};
-                const firstField = Object.keys(validationErrors)[0];
-                const firstError = validationErrors[firstField]?.[0];
+                const hasFieldErrors =
+                    validationErrors &&
+                    typeof validationErrors === "object" &&
+                    Object.keys(validationErrors).length > 0;
 
+                if (hasFieldErrors) {
+                    const firstField = Object.keys(validationErrors)[0];
+                    const firstError = validationErrors[firstField]?.[0];
+                    return {
+                        message: firstError || "Dados inválidos.",
+                        status: 422,
+                        field: firstField,
+                        code: "VALIDATION_ERROR",
+                    };
+                }
+
+                // Quando o backend envia apenas message (ex.: conflito de horário)
+                const rawMessage = data.message || "Dados inválidos.";
+                const lower = rawMessage.toLowerCase();
+                if (lower.includes("conflito") || lower.includes("ocupado")) {
+                    return {
+                        message: ErrorMessages.appointment.timeConflict,
+                        status: 422,
+                        code: "TIME_CONFLICT",
+                    };
+                }
                 return {
-                    message: firstError || "Dados inválidos.",
+                    message: rawMessage,
                     status: 422,
-                    field: firstField,
                     code: "VALIDATION_ERROR",
                 };
             }

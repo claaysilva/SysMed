@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatCPF, formatPhone } from "../hooks/useFormValidation";
 import { Link } from "react-router-dom";
 import {
     PlusIcon,
@@ -108,19 +109,7 @@ const PatientsPageResponsive: React.FC = () => {
         return age;
     };
 
-    const formatCPF = (cpf: string): string => {
-        return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-    };
-
-    const formatPhone = (phone: string): string => {
-        const clean = phone.replace(/\D/g, "");
-        if (clean.length === 11) {
-            return clean.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-        } else if (clean.length === 10) {
-            return clean.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-        }
-        return phone;
-    };
+    // usa formatCPF e formatPhone globais de hooks/useFormValidation
 
     if (loading) {
         return (
@@ -144,9 +133,12 @@ const PatientsPageResponsive: React.FC = () => {
                 </div>
                 <Link
                     to="/patients/new"
-                    className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                    <PlusIcon className="h-4 w-4 mr-2" />
+                    <PlusIcon
+                        className="mr-2"
+                        style={{ width: 14, height: 14 }}
+                    />
                     Novo Paciente
                 </Link>
             </div>
@@ -162,7 +154,7 @@ const PatientsPageResponsive: React.FC = () => {
                                 placeholder="Buscar por nome, CPF ou telefone..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                             />
                         </div>
                     </div>
@@ -178,7 +170,7 @@ const PatientsPageResponsive: React.FC = () => {
                 {showFilters && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                                 <option value="">Status</option>
                                 <option value="ativo">Ativo</option>
                                 <option value="inativo">Inativo</option>
@@ -186,12 +178,12 @@ const PatientsPageResponsive: React.FC = () => {
                             <input
                                 type="date"
                                 placeholder="Data inicial"
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                             />
                             <input
                                 type="date"
                                 placeholder="Data final"
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                             />
                         </div>
                     </div>
@@ -204,19 +196,19 @@ const PatientsPageResponsive: React.FC = () => {
                     <table className="w-full">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 pb-3 pt-0 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Paciente
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 pb-3 pt-0 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Contato
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 pb-3 pt-0 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Idade
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 pb-3 pt-0 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Cadastro
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 pb-3 pt-0 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Ações
                                 </th>
                             </tr>
@@ -233,7 +225,10 @@ const PatientsPageResponsive: React.FC = () => {
                                                 {patient.nome_completo}
                                             </div>
                                             <div className="text-sm text-gray-500">
-                                                CPF: {formatCPF(patient.cpf)}
+                                                CPF:{" "}
+                                                {patient.cpf
+                                                    ? formatCPF(patient.cpf)
+                                                    : "—"}
                                             </div>
                                         </div>
                                     </td>
@@ -322,7 +317,9 @@ const PatientsPageResponsive: React.FC = () => {
                                         <span className="font-medium">
                                             CPF:
                                         </span>{" "}
-                                        {formatCPF(patient.cpf)}
+                                        {patient.cpf
+                                            ? formatCPF(patient.cpf)
+                                            : "—"}
                                     </div>
                                     <div className="text-sm text-gray-600">
                                         <span className="font-medium">
@@ -393,9 +390,12 @@ const PatientsPageResponsive: React.FC = () => {
                     <div className="mt-6">
                         <Link
                             to="/patients/new"
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                            className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
                         >
-                            <PlusIcon className="h-4 w-4 mr-2" />
+                            <PlusIcon
+                                className="mr-2"
+                                style={{ width: 14, height: 14 }}
+                            />
                             Novo Paciente
                         </Link>
                     </div>

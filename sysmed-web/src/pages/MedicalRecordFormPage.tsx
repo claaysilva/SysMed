@@ -1,52 +1,58 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useToast } from "../contexts/toastContextBase";
+import { useNavigate, useParams } from "react-router-dom";
+import { useToast } from "../hooks/useToast";
+import { usePatients as usePatientsList } from "../hooks/usePatients";
+// import { apiRequest } from "../services/api";
+import { useDoctors as useDoctorsCached } from "../hooks/useOptimizedData";
+import { useMedicalRecords } from "../hooks/useMedicalRecords";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { formatCPF } from "../hooks/useFormValidation";
+import Button from "../components/Button";
 import DiagnosisForm from "../components/DiagnosisForm";
 import PrescriptionForm from "../components/PrescriptionForm";
 import ConfirmationModal from "../components/ConfirmationModal";
 
-interface MedicalRecordFormPageProps {
-    recordId?: number; // undefined = nova consulta, number = edição
-}
+type MedicalRecordFormPageProps = Record<string, never>;
 
-interface Patient {
-    id: number;
-    nome_completo: string;
-    cpf: string;
-    data_nascimento: string;
-    telefone: string;
-}
+// Patient é obtido via hook usePatientsList
 
 interface Doctor {
     id: number;
     name: string;
 }
+// type DoctorsResponse = Doctor[] | { success: boolean; data: Doctor[] };
 
 interface FormData {
     patient_id: number;
-    doctor_id: number;
-    consultation_date: string;
-    consultation_time: string;
-    consultation_type: "consulta" | "retorno" | "urgencia";
-    chief_complaint: string;
-    assessment: string;
+    user_id: number;
+    data_consulta: string;
+    horario_consulta: string;
+    tipo_consulta: "consulta" | "retorno" | "emergencia" | "exame" | "cirurgia";
+    queixa_principal: string;
+    hipotese_diagnostica: string;
+    status?: "rascunho" | "finalizado" | "assinado";
 }
 
-const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
-    recordId,
-}) => {
+const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = () => {
+    const navigate = useNavigate();
+    const { recordId } = useParams<{ recordId: string }>();
+    const isEdit = !!recordId;
+    const { getMedicalRecord, createMedicalRecord, updateMedicalRecord } =
+        useMedicalRecords();
+    const { patients } = usePatientsList();
     const [formData, setFormData] = useState<FormData>({
         patient_id: 0,
-        doctor_id: 0,
-        consultation_date: new Date().toISOString().split("T")[0],
-        consultation_time: new Date().toTimeString().slice(0, 5),
-        consultation_type: "consulta",
-        chief_complaint: "",
-        assessment: "",
+        user_id: 0,
+        data_consulta: new Date().toISOString().split("T")[0],
+        horario_consulta: new Date().toTimeString().slice(0, 5),
+        tipo_consulta: "consulta",
+        queixa_principal: "",
+        hipotese_diagnostica: "",
+        status: "rascunho",
     });
 
-    const [patients, setPatients] = useState<Patient[]>([]);
     const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const { data: doctorsData } = useDoctorsCached();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [activeSection, setActiveSection] = useState<
@@ -57,72 +63,29 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
     const [showPrescriptionForm, setShowPrescriptionForm] = useState(false);
     const [saveModal, setSaveModal] = useState(false);
 
-    const { showSuccess, showError, showInfo } = useToast();
-
-    const isEdit = recordId !== undefined;
+    const { showSuccess, showError } = useToast();
 
     const loadInitialData = useCallback(async () => {
         try {
             setLoading(true);
+            // Pacientes são carregados automaticamente pelo hook usePatientsList
+            // Médicos serão aplicados via efeito quando doctorsData atualizar
 
-            // Simular delay de API
-            await new Promise((resolve) => setTimeout(resolve, 800));
-
-            // Carregar pacientes e médicos (mockados)
-            const mockPatients: Patient[] = [
-                {
-                    id: 1,
-                    nome_completo: "Maria Silva Santos",
-                    cpf: "123.456.789-00",
-                    data_nascimento: "1980-05-15",
-                    telefone: "(11) 99999-9999",
-                },
-                {
-                    id: 2,
-                    nome_completo: "Pedro Oliveira Costa",
-                    cpf: "987.654.321-00",
-                    data_nascimento: "1975-08-22",
-                    telefone: "(11) 88888-8888",
-                },
-                {
-                    id: 3,
-                    nome_completo: "Carlos Eduardo Mendes",
-                    cpf: "555.666.777-88",
-                    data_nascimento: "1990-12-10",
-                    telefone: "(11) 77777-7777",
-                },
-            ];
-
-            const mockDoctors: Doctor[] = [
-                { id: 1, name: "Dr. João Carvalho" },
-                { id: 2, name: "Dra. Ana Paula Silva" },
-                { id: 3, name: "Dr. Roberto Fernandes" },
-            ];
-
-            setPatients(mockPatients);
-            setDoctors(mockDoctors);
-
-            // Se for edição, carregar dados do prontuário
-            if (isEdit) {
-                const mockRecord = {
-                    patient_id: 1,
-                    doctor_id: 1,
-                    consultation_date: "2025-09-17",
-                    consultation_time: "14:30",
-                    consultation_type: "consulta" as const,
-                    chief_complaint:
-                        "Dor nas costas há 3 dias, irradiando para a perna direita. Piora com movimentos e melhora com repouso.",
-                    assessment:
-                        "Provável distensão muscular lombar com comprometimento do nervo ciático. Paciente apresenta limitação funcional moderada. Recomenda-se repouso relativo, fisioterapia e acompanhamento.",
-                };
-
-                setFormData(mockRecord);
-            } else {
-                // Para nova consulta, definir médico padrão (primeiro da lista)
-                setFormData((prev) => ({
-                    ...prev,
-                    doctor_id: mockDoctors[0]?.id || 0,
-                }));
+            // Se for edição, carregar dados reais do prontuário
+            if (isEdit && recordId) {
+                const rec = await getMedicalRecord(Number(recordId));
+                if (rec) {
+                    setFormData({
+                        patient_id: rec.patient_id,
+                        user_id: rec.user_id,
+                        data_consulta: rec.data_consulta,
+                        horario_consulta: rec.horario_consulta,
+                        tipo_consulta: rec.tipo_consulta,
+                        queixa_principal: rec.queixa_principal || "",
+                        hipotese_diagnostica: rec.hipotese_diagnostica || "",
+                        status: rec.status,
+                    });
+                }
             }
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
@@ -130,11 +93,37 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
         } finally {
             setLoading(false);
         }
-    }, [isEdit, showError]);
+    }, [isEdit, recordId, showError, getMedicalRecord]);
 
     useEffect(() => {
         loadInitialData();
-    }, [recordId, loadInitialData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [recordId]);
+
+    // Aplicar médicos do hook cacheado e pré-selecionar médico padrão
+    useEffect(() => {
+        const list: Doctor[] = Array.isArray(doctorsData)
+            ? (doctorsData as Doctor[])
+            : (doctorsData as { data?: Doctor[] })?.data || [];
+        setDoctors(list);
+        if (list.length > 0) {
+            setFormData((prev) => {
+                if (prev.user_id && list.some((d) => d.id === prev.user_id)) {
+                    return prev; // já selecionado e válido
+                }
+                const storedUserId = localStorage.getItem("userId");
+                const defaultDoctorId =
+                    storedUserId &&
+                    list.some((d) => String(d.id) === String(storedUserId))
+                        ? Number(storedUserId)
+                        : list[0].id;
+                return { ...prev, user_id: defaultDoctorId };
+            });
+        } else {
+            // Sem médicos disponíveis, resetar seleção
+            setFormData((prev) => ({ ...prev, user_id: 0 }));
+        }
+    }, [doctorsData]);
 
     const handleInputChange = (
         field: keyof FormData,
@@ -152,22 +141,22 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
             return false;
         }
 
-        if (!formData.doctor_id) {
+        if (!formData.user_id) {
             showError("Selecione um médico");
             return false;
         }
 
-        if (!formData.consultation_date) {
+        if (!formData.data_consulta) {
             showError("Informe a data da consulta");
             return false;
         }
 
-        if (!formData.consultation_time) {
+        if (!formData.horario_consulta) {
             showError("Informe o horário da consulta");
             return false;
         }
 
-        if (!formData.chief_complaint.trim()) {
+        if (!formData.queixa_principal.trim()) {
             showError("Informe a queixa principal");
             return false;
         }
@@ -180,19 +169,23 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
 
         try {
             setSaving(true);
-
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-
             setSaveModal(false);
-            showSuccess(
-                isEdit
-                    ? "Prontuário atualizado com sucesso!"
-                    : "Prontuário criado com sucesso!"
-            );
-
-            // Navegar de volta para a lista ou detalhes
-            showInfo("Redirecionando...");
+            if (isEdit && recordId) {
+                const updated = await updateMedicalRecord(
+                    Number(recordId),
+                    formData
+                );
+                if (updated) {
+                    showSuccess("Prontuário atualizado com sucesso!");
+                    navigate(`/medical-records/${updated.id}`);
+                }
+            } else {
+                const created = await createMedicalRecord(formData);
+                if (created) {
+                    showSuccess("Prontuário criado com sucesso!");
+                    navigate(`/medical-records/${created.id}`);
+                }
+            }
         } catch (error) {
             console.error("Erro ao salvar prontuário:", error);
             showError("Erro ao salvar prontuário");
@@ -202,8 +195,7 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
     };
 
     const handleCancel = () => {
-        showInfo("Redirecionando para lista de prontuários...");
-        // Navegar de volta
+        navigate("/medical-records");
     };
 
     if (loading) {
@@ -211,103 +203,38 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
     }
 
     return (
-        <div
-            style={{
-                padding: "2rem",
-                backgroundColor: "#f8fafc",
-                minHeight: "100vh",
-            }}
-        >
+        <div className="p-8 bg-slate-50 min-h-screen">
             {/* Header */}
-            <div
-                style={{
-                    backgroundColor: "white",
-                    padding: "1.5rem",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    marginBottom: "1.5rem",
-                }}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}
-                >
+            <div className="bg-white px-6 py-5 rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div className="flex items-center justify-between">
                     <div>
-                        <h1
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                color: "#111827",
-                                margin: "0 0 0.5rem 0",
-                            }}
-                        >
+                        <h1 className="text-2xl font-bold text-gray-900 mb-1">
                             {isEdit ? "Editar Prontuário" : "Novo Prontuário"}
                         </h1>
-                        <p
-                            style={{
-                                fontSize: "0.875rem",
-                                color: "#6b7280",
-                                margin: 0,
-                            }}
-                        >
+                        <p className="text-sm text-gray-500 m-0">
                             {isEdit
                                 ? "Atualize as informações do prontuário médico"
                                 : "Registre uma nova consulta médica"}
                         </p>
                     </div>
 
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button
-                            onClick={handleCancel}
-                            style={{
-                                padding: "0.75rem 1.5rem",
-                                backgroundColor: "#f3f4f6",
-                                color: "#374151",
-                                border: "1px solid #d1d5db",
-                                borderRadius: "8px",
-                                fontSize: "0.875rem",
-                                cursor: "pointer",
-                            }}
-                        >
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={handleCancel}>
                             Cancelar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => setSaveModal(true)}
-                            style={{
-                                padding: "0.75rem 1.5rem",
-                                backgroundColor: "#3b82f6",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "8px",
-                                fontSize: "0.875rem",
-                                cursor: "pointer",
-                            }}
+                            disabled={doctors.length === 0}
                         >
                             {isEdit ? "Atualizar" : "Salvar"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
 
             {/* Navegação por Seções */}
-            <div
-                style={{
-                    backgroundColor: "white",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    overflow: "hidden",
-                    marginBottom: "1.5rem",
-                }}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        borderBottom: "1px solid #e5e7eb",
-                    }}
-                >
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                <div className="flex border-b border-gray-200">
                     {[
                         { key: "basic", label: "Informações Básicas" },
                         { key: "diagnoses", label: "Diagnósticos" },
@@ -320,55 +247,25 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
                                     section.key as typeof activeSection
                                 )
                             }
-                            style={{
-                                padding: "1rem 1.5rem",
-                                backgroundColor:
-                                    activeSection === section.key
-                                        ? "#f9fafb"
-                                        : "transparent",
-                                color:
-                                    activeSection === section.key
-                                        ? "#3b82f6"
-                                        : "#6b7280",
-                                border: "none",
-                                borderBottom:
-                                    activeSection === section.key
-                                        ? "2px solid #3b82f6"
-                                        : "2px solid transparent",
-                                cursor: "pointer",
-                                fontSize: "0.875rem",
-                                fontWeight: "500",
-                                flex: 1,
-                            }}
+                            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex-1 ${
+                                activeSection === section.key
+                                    ? "border-blue-500 text-blue-600 bg-gray-50"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                            }`}
                         >
                             {section.label}
                         </button>
                     ))}
                 </div>
 
-                <div style={{ padding: "1.5rem" }}>
+                <div className="p-6">
                     {/* Seção: Informações Básicas */}
                     {activeSection === "basic" && (
-                        <div style={{ display: "grid", gap: "1.5rem" }}>
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns:
-                                        "repeat(auto-fit, minmax(300px, 1fr))",
-                                    gap: "1rem",
-                                }}
-                            >
+                        <div className="grid gap-6">
+                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                                 {/* Seleção de Paciente */}
                                 <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "0.875rem",
-                                            fontWeight: "500",
-                                            color: "#374151",
-                                            marginBottom: "0.5rem",
-                                        }}
-                                    >
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Paciente *
                                     </label>
                                     <select
@@ -379,15 +276,7 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
                                                 Number(e.target.value)
                                             )
                                         }
-                                        style={{
-                                            width: "100%",
-                                            padding: "0.75rem",
-                                            border: "1px solid #d1d5db",
-                                            borderRadius: "8px",
-                                            fontSize: "0.875rem",
-                                            outline: "none",
-                                            backgroundColor: "white",
-                                        }}
+                                        className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                                     >
                                         <option value={0}>
                                             Selecione um paciente
@@ -398,7 +287,9 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
                                                 value={patient.id}
                                             >
                                                 {patient.nome_completo} -{" "}
-                                                {patient.cpf}
+                                                {patient.cpf
+                                                    ? formatCPF(patient.cpf)
+                                                    : "—"}
                                             </option>
                                         ))}
                                     </select>
@@ -406,37 +297,23 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
 
                                 {/* Seleção de Médico */}
                                 <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "0.875rem",
-                                            fontWeight: "500",
-                                            color: "#374151",
-                                            marginBottom: "0.5rem",
-                                        }}
-                                    >
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Médico *
                                     </label>
                                     <select
-                                        value={formData.doctor_id}
+                                        value={formData.user_id}
                                         onChange={(e) =>
                                             handleInputChange(
-                                                "doctor_id",
+                                                "user_id",
                                                 Number(e.target.value)
                                             )
                                         }
-                                        style={{
-                                            width: "100%",
-                                            padding: "0.75rem",
-                                            border: "1px solid #d1d5db",
-                                            borderRadius: "8px",
-                                            fontSize: "0.875rem",
-                                            outline: "none",
-                                            backgroundColor: "white",
-                                        }}
+                                        className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                                     >
                                         <option value={0}>
-                                            Selecione um médico
+                                            {doctors.length === 0
+                                                ? "Nenhum médico disponível"
+                                                : "Selecione um médico"}
                                         </option>
                                         {doctors.map((doctor) => (
                                             <option
@@ -447,120 +324,78 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
                                             </option>
                                         ))}
                                     </select>
+                                    {doctors.length === 0 && (
+                                        <p className="mt-1 text-xs text-red-700">
+                                            Não há médicos cadastrados ou
+                                            disponíveis. Cadastre um médico para
+                                            prosseguir.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns:
-                                        "repeat(auto-fit, minmax(200px, 1fr))",
-                                    gap: "1rem",
-                                }}
-                            >
+                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
                                 {/* Data da Consulta */}
                                 <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "0.875rem",
-                                            fontWeight: "500",
-                                            color: "#374151",
-                                            marginBottom: "0.5rem",
-                                        }}
-                                    >
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Data da Consulta *
                                     </label>
                                     <input
                                         type="date"
-                                        value={formData.consultation_date}
+                                        value={formData.data_consulta}
                                         onChange={(e) =>
                                             handleInputChange(
-                                                "consultation_date",
+                                                "data_consulta",
                                                 e.target.value
                                             )
                                         }
-                                        style={{
-                                            width: "100%",
-                                            padding: "0.75rem",
-                                            border: "1px solid #d1d5db",
-                                            borderRadius: "8px",
-                                            fontSize: "0.875rem",
-                                            outline: "none",
-                                        }}
+                                        className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                     />
                                 </div>
 
                                 {/* Horário da Consulta */}
                                 <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "0.875rem",
-                                            fontWeight: "500",
-                                            color: "#374151",
-                                            marginBottom: "0.5rem",
-                                        }}
-                                    >
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Horário *
                                     </label>
                                     <input
                                         type="time"
-                                        value={formData.consultation_time}
+                                        value={formData.horario_consulta}
                                         onChange={(e) =>
                                             handleInputChange(
-                                                "consultation_time",
+                                                "horario_consulta",
                                                 e.target.value
                                             )
                                         }
-                                        style={{
-                                            width: "100%",
-                                            padding: "0.75rem",
-                                            border: "1px solid #d1d5db",
-                                            borderRadius: "8px",
-                                            fontSize: "0.875rem",
-                                            outline: "none",
-                                        }}
+                                        className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                     />
                                 </div>
 
                                 {/* Tipo de Consulta */}
                                 <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "0.875rem",
-                                            fontWeight: "500",
-                                            color: "#374151",
-                                            marginBottom: "0.5rem",
-                                        }}
-                                    >
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Tipo de Consulta *
                                     </label>
                                     <select
-                                        value={formData.consultation_type}
+                                        value={formData.tipo_consulta}
                                         onChange={(e) =>
                                             handleInputChange(
-                                                "consultation_type",
+                                                "tipo_consulta",
                                                 e.target.value
                                             )
                                         }
-                                        style={{
-                                            width: "100%",
-                                            padding: "0.75rem",
-                                            border: "1px solid #d1d5db",
-                                            borderRadius: "8px",
-                                            fontSize: "0.875rem",
-                                            outline: "none",
-                                            backgroundColor: "white",
-                                        }}
+                                        className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                                     >
                                         <option value="consulta">
                                             Consulta
                                         </option>
                                         <option value="retorno">Retorno</option>
-                                        <option value="urgencia">
-                                            Urgência
+                                        <option value="emergencia">
+                                            Emergência
+                                        </option>
+                                        <option value="exame">Exame</option>
+                                        <option value="cirurgia">
+                                            Cirurgia
                                         </option>
                                     </select>
                                 </div>
@@ -568,73 +403,39 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
 
                             {/* Queixa Principal */}
                             <div>
-                                <label
-                                    style={{
-                                        display: "block",
-                                        fontSize: "0.875rem",
-                                        fontWeight: "500",
-                                        color: "#374151",
-                                        marginBottom: "0.5rem",
-                                    }}
-                                >
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Queixa Principal *
                                 </label>
                                 <textarea
-                                    value={formData.chief_complaint}
+                                    value={formData.queixa_principal}
                                     onChange={(e) =>
                                         handleInputChange(
-                                            "chief_complaint",
+                                            "queixa_principal",
                                             e.target.value
                                         )
                                     }
                                     placeholder="Descreva a queixa principal do paciente..."
                                     rows={4}
-                                    style={{
-                                        width: "100%",
-                                        padding: "0.75rem",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: "8px",
-                                        fontSize: "0.875rem",
-                                        outline: "none",
-                                        resize: "vertical",
-                                        fontFamily: "inherit",
-                                    }}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-vertical"
                                 />
                             </div>
 
                             {/* Avaliação Médica */}
                             <div>
-                                <label
-                                    style={{
-                                        display: "block",
-                                        fontSize: "0.875rem",
-                                        fontWeight: "500",
-                                        color: "#374151",
-                                        marginBottom: "0.5rem",
-                                    }}
-                                >
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Avaliação Médica
                                 </label>
                                 <textarea
-                                    value={formData.assessment}
+                                    value={formData.hipotese_diagnostica}
                                     onChange={(e) =>
                                         handleInputChange(
-                                            "assessment",
+                                            "hipotese_diagnostica",
                                             e.target.value
                                         )
                                     }
                                     placeholder="Descrição da avaliação médica, diagnóstico diferencial, plano de tratamento..."
                                     rows={6}
-                                    style={{
-                                        width: "100%",
-                                        padding: "0.75rem",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: "8px",
-                                        fontSize: "0.875rem",
-                                        outline: "none",
-                                        resize: "vertical",
-                                        fontFamily: "inherit",
-                                    }}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-vertical"
                                 />
                             </div>
                         </div>
@@ -643,47 +444,18 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
                     {/* Seção: Diagnósticos */}
                     {activeSection === "diagnoses" && (
                         <div>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    marginBottom: "1rem",
-                                }}
-                            >
-                                <h3
-                                    style={{
-                                        fontSize: "1rem",
-                                        fontWeight: "600",
-                                        color: "#111827",
-                                        margin: 0,
-                                    }}
-                                >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-semibold text-gray-900 m-0">
                                     Diagnósticos
                                 </h3>
-                                <button
+                                <Button
                                     onClick={() => setShowDiagnosisForm(true)}
-                                    style={{
-                                        padding: "0.5rem 1rem",
-                                        backgroundColor: "#3b82f6",
-                                        color: "white",
-                                        border: "none",
-                                        borderRadius: "6px",
-                                        fontSize: "0.875rem",
-                                        cursor: "pointer",
-                                    }}
                                 >
                                     + Adicionar Diagnóstico
-                                </button>
+                                </Button>
                             </div>
 
-                            <div
-                                style={{
-                                    textAlign: "center",
-                                    padding: "2rem",
-                                    color: "#6b7280",
-                                }}
-                            >
+                            <div className="text-center py-8 text-gray-500">
                                 Nenhum diagnóstico adicionado ainda.
                                 <br />
                                 Clique em "Adicionar Diagnóstico" para começar.
@@ -706,49 +478,20 @@ const MedicalRecordFormPage: React.FC<MedicalRecordFormPageProps> = ({
                     {/* Seção: Prescrições */}
                     {activeSection === "prescriptions" && (
                         <div>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    marginBottom: "1rem",
-                                }}
-                            >
-                                <h3
-                                    style={{
-                                        fontSize: "1rem",
-                                        fontWeight: "600",
-                                        color: "#111827",
-                                        margin: 0,
-                                    }}
-                                >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-semibold text-gray-900 m-0">
                                     Prescrições Médicas
                                 </h3>
-                                <button
+                                <Button
                                     onClick={() =>
                                         setShowPrescriptionForm(true)
                                     }
-                                    style={{
-                                        padding: "0.5rem 1rem",
-                                        backgroundColor: "#3b82f6",
-                                        color: "white",
-                                        border: "none",
-                                        borderRadius: "6px",
-                                        fontSize: "0.875rem",
-                                        cursor: "pointer",
-                                    }}
                                 >
                                     + Adicionar Prescrição
-                                </button>
+                                </Button>
                             </div>
 
-                            <div
-                                style={{
-                                    textAlign: "center",
-                                    padding: "2rem",
-                                    color: "#6b7280",
-                                }}
-                            >
+                            <div className="text-center py-8 text-gray-500">
                                 Nenhuma prescrição adicionada ainda.
                                 <br />
                                 Clique em "Adicionar Prescrição" para começar.

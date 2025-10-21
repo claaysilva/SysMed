@@ -154,7 +154,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             onChange={handleChange}
                             required
                             placeholder="Ex: Dipirona"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                     </div>
 
@@ -168,7 +168,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             value={formData.generic_name}
                             onChange={handleChange}
                             placeholder="Ex: Metamizol sódico"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                     </div>
                 </div>
@@ -186,7 +186,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             onChange={handleChange}
                             required
                             placeholder="Ex: 500mg"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                     </div>
 
@@ -199,7 +199,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             value={formData.form}
                             onChange={handleChange}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         >
                             {medicationForms.map((form) => (
                                 <option key={form} value={form}>
@@ -221,7 +221,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             onChange={handleChange}
                             required
                             min="1"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                     </div>
                 </div>
@@ -239,7 +239,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             onChange={handleChange}
                             required
                             placeholder="Ex: 2x ao dia, 8/8h"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                         <p className="text-xs text-gray-500 mt-1">
                             Exemplos: 2x ao dia, 8/8h, 1x semana, conforme
@@ -311,7 +311,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                         onChange={handleChange}
                         rows={3}
                         placeholder="Ex: Tomar após as refeições, com bastante água..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                 </div>
 
@@ -324,7 +324,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             name="is_controlled"
                             checked={formData.is_controlled}
                             onChange={handleChange}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
                         />
                         <label
                             htmlFor="is_controlled"
@@ -341,7 +341,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             name="generic_allowed"
                             checked={formData.generic_allowed}
                             onChange={handleChange}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
                         />
                         <label
                             htmlFor="generic_allowed"
@@ -363,7 +363,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                         onChange={handleChange}
                         rows={2}
                         placeholder="Ex: Não use em caso de alergia a dipirona..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                 </div>
 
@@ -378,7 +378,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                         onChange={handleChange}
                         rows={2}
                         placeholder="Ex: Sonolência, náusea, dor de cabeça..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                 </div>
 
@@ -393,7 +393,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                         onChange={handleChange}
                         rows={2}
                         placeholder="Observações adicionais sobre a prescrição..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                 </div>
 
@@ -403,14 +403,14 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                         type="button"
                         onClick={onCancel}
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
                     >
                         Cancelar
                     </button>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading
                             ? "Salvando..."

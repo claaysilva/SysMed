@@ -150,7 +150,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                 e.target.value ? Number(e.target.value) : null
                             )
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     >
                         <option value="">Relatório personalizado</option>
                         {filteredTemplates.map((template) => (
@@ -180,7 +180,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                             }
                             required
                             placeholder="Ex: Relatório Mensal de Consultas"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
                     </div>
 
@@ -195,7 +195,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                             }
                             required
                             disabled={!!selectedTemplate}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50"
                         >
                             {typeOptions.map((option) => (
                                 <option key={option.value} value={option.value}>
@@ -220,7 +220,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                             required
                             disabled={!!selectedTemplate}
                             placeholder="Ex: consultas, pacientes, financeiro"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50"
                         />
                     </div>
 
@@ -234,7 +234,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                 handleInputChange("format", e.target.value)
                             }
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         >
                             {formatOptions.map((option) => (
                                 <option key={option.value} value={option.value}>
@@ -257,7 +257,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                         }
                         rows={3}
                         placeholder="Descrição opcional do relatório..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                 </div>
 
@@ -281,7 +281,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                         e.target.value
                                     )
                                 }
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                         </div>
 
@@ -304,7 +304,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                         ? formData.filters.date_from
                                         : undefined
                                 }
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                         </div>
 
@@ -325,7 +325,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                             e.target.value
                                         )
                                     }
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 >
                                     <option value="">Todos os tipos</option>
                                     <option value="consulta">Consulta</option>
@@ -355,7 +355,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                         }
                                         min="0"
                                         max="150"
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                     />
                                 </div>
 
@@ -381,7 +381,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                                 : 0
                                         }
                                         max="150"
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                     />
                                 </div>
 
@@ -399,7 +399,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                                                 e.target.value
                                             )
                                         }
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                     >
                                         <option value="">
                                             Todos os gêneros
@@ -430,7 +430,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                             handleInputChange("expires_at", e.target.value)
                         }
                         min={new Date().toISOString().slice(0, 16)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                         Se não especificado, o relatório expirará em 30 dias
@@ -443,14 +443,14 @@ const ReportForm: React.FC<ReportFormProps> = ({
                         type="button"
                         onClick={onCancel}
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
                     >
                         Cancelar
                     </button>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? "Gerando..." : "Gerar Relatório"}
                     </button>

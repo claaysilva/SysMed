@@ -16,13 +16,6 @@ interface DashboardStats {
     growth_percentage: number;
 }
 
-interface RecentActivity {
-    type: "appointment" | "patient" | "medical_record";
-    description: string;
-    timestamp: string;
-    user?: string;
-}
-
 // Hook para dados de pacientes com cache e busca otimizada
 export const usePatients = (
     searchTerm?: string,
@@ -92,18 +85,6 @@ export const useDashboardStats = () => {
 
     return useLocalCache("dashboard_stats", fetchStats, {
         ttl: 5, // Cache por 5 minutos
-    });
-};
-
-// Hook para atividades recentes
-export const useRecentActivity = () => {
-    const fetchActivity = useCallback(async () => {
-        const response = await apiRequest.get("/dashboard/recent-activity");
-        return response as RecentActivity[];
-    }, []);
-
-    return useLocalCache("recent_activity", fetchActivity, {
-        ttl: 2, // Cache por 2 minutos
     });
 };
 
@@ -284,7 +265,6 @@ export default {
     usePatients,
     useAppointments,
     useDashboardStats,
-    useRecentActivity,
     useDoctors,
     useMedicalRecords,
     useReports,

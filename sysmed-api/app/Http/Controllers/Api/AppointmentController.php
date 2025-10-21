@@ -396,15 +396,13 @@ class AppointmentController extends Controller
    */
   private function checkTimeConflicts($doctorId, $startTime, $endTime, $excludeId = null)
   {
+    // Dois intervalos [a,b) e [c,d) conflitam se: a < d E b > c
+    // Isso permite intervalos adjacentes (b == c) sem conflito.
     $query = Appointment::where('user_id', $doctorId)
       ->whereNotIn('status', ['cancelado'])
       ->where(function ($q) use ($startTime, $endTime) {
-        $q->whereBetween('data_hora_inicio', [$startTime, $endTime])
-          ->orWhereBetween('data_hora_fim', [$startTime, $endTime])
-          ->orWhere(function ($subQ) use ($startTime, $endTime) {
-            $subQ->where('data_hora_inicio', '<=', $startTime)
-              ->where('data_hora_fim', '>=', $endTime);
-          });
+        $q->where('data_hora_inicio', '<', $endTime)
+          ->where('data_hora_fim', '>', $startTime);
       });
 
     if ($excludeId) {

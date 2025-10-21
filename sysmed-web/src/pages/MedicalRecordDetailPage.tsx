@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useToast } from "../contexts/toastContextBase";
-import { type MedicalRecord } from "../components/MedicalRecordCard";
+import { useParams, useNavigate } from "react-router-dom";
+import { useToast } from "../hooks/useToast";
+import {
+    useMedicalRecords,
+    type MedicalRecord,
+} from "../hooks/useMedicalRecords";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { formatCPF } from "../hooks/useFormValidation";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmationModal from "../components/ConfirmationModal";
+import Button from "../components/Button";
 
-interface MedicalRecordDetailPageProps {
-    recordId?: number;
-}
+// Sem props; usa recordId da rota
+type MedicalRecordDetailPageProps = Record<string, never>;
 
 interface Diagnosis {
     id: number;
@@ -36,9 +41,10 @@ interface Attachment {
     created_at: string;
 }
 
-const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
-    recordId = 1,
-}) => {
+const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = () => {
+    const { recordId } = useParams<{ recordId: string }>();
+    const navigate = useNavigate();
+    const { getMedicalRecord, updateMedicalRecord } = useMedicalRecords();
     const [medicalRecord, setMedicalRecord] = useState<MedicalRecord | null>(
         null
     );
@@ -53,116 +59,32 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
     const [signModal, setSignModal] = useState(false);
     const [signing, setSigning] = useState(false);
 
-    const { showSuccess, showError, showInfo } = useToast() as {
-        showSuccess: (m: string) => void;
-        showError: (m: string) => void;
-        showInfo: (m: string) => void;
-    };
+    const { showSuccess, showError, showInfo } = useToast();
 
     const loadMedicalRecord = useCallback(async () => {
         try {
             setLoading(true);
-
-            // Simular delay de API
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // Dados mockados para demonstração
-            const mockRecord: MedicalRecord = {
-                id: recordId,
-                patient: {
-                    id: 1,
-                    nome_completo: "Maria Silva Santos",
-                    cpf: "123.456.789-00",
-                },
-                doctor: {
-                    id: 1,
-                    name: "Dr. João Carvalho",
-                },
-                consultation_date: "2025-09-17",
-                consultation_time: "14:30",
-                consultation_type: "consulta",
-                status: "completed",
-                chief_complaint:
-                    "Dor nas costas há 3 dias, irradiando para a perna direita. Piora com movimentos e melhora com repouso.",
-                assessment:
-                    "Provável distensão muscular lombar com comprometimento do nervo ciático. Paciente apresenta limitação funcional moderada. Recomenda-se repouso relativo, fisioterapia e acompanhamento.",
-                diagnoses_count: 2,
-                prescriptions_count: 3,
-                attachments_count: 1,
-                created_at: "2025-09-17T14:30:00Z",
-                updated_at: "2025-09-17T15:45:00Z",
-            };
-
-            const mockDiagnoses: Diagnosis[] = [
-                {
-                    id: 1,
-                    code: "M54.5",
-                    description: "Dor lombar baixa",
-                    type: "primary",
-                    created_at: "2025-09-17T14:45:00Z",
-                },
-                {
-                    id: 2,
-                    code: "M54.4",
-                    description: "Lumbago com ciática",
-                    type: "secondary",
-                    created_at: "2025-09-17T14:46:00Z",
-                },
-            ];
-
-            const mockPrescriptions: Prescription[] = [
-                {
-                    id: 1,
-                    medication_name: "Ibuprofeno 600mg",
-                    dosage: "600mg",
-                    frequency: "8/8 horas",
-                    duration: "7 dias",
-                    instructions: "Tomar após as refeições",
-                    created_at: "2025-09-17T14:50:00Z",
-                },
-                {
-                    id: 2,
-                    medication_name:
-                        "Relaxante muscular (Ciclobenzaprina 10mg)",
-                    dosage: "10mg",
-                    frequency: "12/12 horas",
-                    duration: "5 dias",
-                    instructions: "Tomar à noite, pode causar sonolência",
-                    created_at: "2025-09-17T14:51:00Z",
-                },
-                {
-                    id: 3,
-                    medication_name: "Pomada anti-inflamatória (Diclofenaco)",
-                    dosage: "Uso tópico",
-                    frequency: "3x ao dia",
-                    duration: "10 dias",
-                    instructions: "Aplicar na região lombar com massagem suave",
-                    created_at: "2025-09-17T14:52:00Z",
-                },
-            ];
-
-            const mockAttachments: Attachment[] = [
-                {
-                    id: 1,
-                    filename: "radiografia_lombar.jpg",
-                    file_type: "image/jpeg",
-                    file_size: 1024000,
-                    description: "Radiografia da coluna lombar",
-                    created_at: "2025-09-17T14:55:00Z",
-                },
-            ];
-
-            setMedicalRecord(mockRecord);
-            setDiagnoses(mockDiagnoses);
-            setPrescriptions(mockPrescriptions);
-            setAttachments(mockAttachments);
+            if (!recordId) {
+                showError("ID do prontuário não informado");
+                return;
+            }
+            const rec = await getMedicalRecord(Number(recordId));
+            if (!rec) {
+                showError("Prontuário não encontrado");
+                return;
+            }
+            setMedicalRecord(rec);
+            // Mantemos listas vazias enquanto não há endpoints específicos
+            setDiagnoses([]);
+            setPrescriptions([]);
+            setAttachments([]);
         } catch (error) {
             console.error("Erro ao carregar prontuário:", error);
             showError("Erro ao carregar prontuário");
         } finally {
             setLoading(false);
         }
-    }, [recordId, showError]);
+    }, [recordId, getMedicalRecord, showError]);
 
     useEffect(() => {
         loadMedicalRecord();
@@ -171,20 +93,15 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
     const handleSignRecord = async () => {
         try {
             setSigning(true);
-
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-
-            if (medicalRecord) {
-                setMedicalRecord({
-                    ...medicalRecord,
-                    status: "signed",
-                    signed_at: new Date().toISOString(),
-                });
+            if (!medicalRecord) return;
+            const updated = await updateMedicalRecord(medicalRecord.id, {
+                status: "assinado",
+            });
+            if (updated) {
+                setMedicalRecord(updated);
+                setSignModal(false);
+                showSuccess("Prontuário assinado digitalmente com sucesso!");
             }
-
-            setSignModal(false);
-            showSuccess("Prontuário assinado digitalmente com sucesso!");
         } catch (error) {
             console.error("Erro ao assinar prontuário:", error);
             showError("Erro ao assinar prontuário");
@@ -194,8 +111,8 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
     };
 
     const handleEditRecord = () => {
-        showInfo("Redirecionando para edição...");
-        // Navegar para página de edição
+        if (!medicalRecord) return;
+        navigate(`/medical-records/${medicalRecord.id}/edit`);
     };
 
     const handlePrintRecord = () => {
@@ -222,39 +139,13 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
 
     if (!medicalRecord) {
         return (
-            <div
-                style={{
-                    padding: "2rem",
-                    backgroundColor: "#f8fafc",
-                    minHeight: "100vh",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                }}
-            >
-                <div
-                    style={{
-                        backgroundColor: "white",
-                        padding: "3rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                        textAlign: "center",
-                    }}
-                >
-                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>
-                        ❌
-                    </div>
-                    <h3
-                        style={{
-                            fontSize: "1.125rem",
-                            fontWeight: "600",
-                            color: "#374151",
-                            margin: "0 0 0.5rem 0",
-                        }}
-                    >
+            <div className="p-8 bg-slate-50 min-h-screen flex items-center justify-center">
+                <div className="bg-white p-10 rounded-xl shadow-sm border border-gray-200 text-center">
+                    <div className="text-5xl mb-4">❌</div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-1">
                         Prontuário não encontrado
                     </h3>
-                    <p style={{ color: "#6b7280", margin: 0 }}>
+                    <p className="text-gray-500">
                         O prontuário solicitado não foi encontrado ou você não
                         tem permissão para acessá-lo.
                     </p>
@@ -264,170 +155,83 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
     }
 
     return (
-        <div
-            style={{
-                padding: "2rem",
-                backgroundColor: "#f8fafc",
-                minHeight: "100vh",
-            }}
-        >
+        <div className="p-8 bg-slate-50 min-h-screen">
             {/* Header */}
-            <div
-                style={{
-                    backgroundColor: "white",
-                    padding: "1.5rem",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    marginBottom: "1.5rem",
-                }}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: "1rem",
-                    }}
-                >
+            <div className="bg-white px-6 py-5 rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div className="flex items-start justify-between mb-3">
                     <div>
-                        <h1
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                color: "#111827",
-                                margin: "0 0 0.5rem 0",
-                            }}
-                        >
+                        <h1 className="text-2xl font-bold text-gray-900 mb-1">
                             Prontuário - {medicalRecord.patient.nome_completo}
                         </h1>
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "1rem",
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            <span
-                                style={{
-                                    color: "#6b7280",
-                                    fontSize: "0.875rem",
-                                }}
-                            >
-                                CPF: {medicalRecord.patient.cpf}
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <span className="text-sm text-gray-500">
+                                CPF:{" "}
+                                {medicalRecord.patient?.cpf
+                                    ? formatCPF(medicalRecord.patient.cpf)
+                                    : "—"}
                             </span>
-                            <span
-                                style={{
-                                    color: "#6b7280",
-                                    fontSize: "0.875rem",
-                                }}
-                            >
-                                Médico: {medicalRecord.doctor.name}
+                            <span className="text-sm text-gray-500">
+                                Médico: {medicalRecord.user.name}
                             </span>
-                            <span
-                                style={{
-                                    color: "#6b7280",
-                                    fontSize: "0.875rem",
-                                }}
-                            >
+                            <span className="text-sm text-gray-500">
                                 Data:{" "}
                                 {new Date(
-                                    medicalRecord.consultation_date
+                                    medicalRecord.data_consulta
                                 ).toLocaleDateString("pt-BR")}{" "}
-                                às {medicalRecord.consultation_time}
+                                às {medicalRecord.horario_consulta}
                             </span>
-                            <StatusBadge status={medicalRecord.status}>
-                                {medicalRecord.status === "draft"
-                                    ? "Rascunho"
-                                    : medicalRecord.status === "completed"
-                                    ? "Concluído"
-                                    : "Assinado"}
+                            <StatusBadge
+                                status={
+                                    medicalRecord.status === "assinado"
+                                        ? "signed"
+                                        : medicalRecord.status === "finalizado"
+                                        ? "completed"
+                                        : "draft"
+                                }
+                            >
+                                {medicalRecord.status_label}
                             </StatusBadge>
                         </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                        {medicalRecord.status !== "signed" && (
+                    <div className="flex gap-2">
+                        {medicalRecord.status !== "assinado" && (
                             <>
-                                <button
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={handleEditRecord}
-                                    style={{
-                                        padding: "0.5rem 1rem",
-                                        backgroundColor: "#f3f4f6",
-                                        color: "#374151",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: "6px",
-                                        fontSize: "0.875rem",
-                                        cursor: "pointer",
-                                    }}
                                 >
                                     Editar
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    size="sm"
                                     onClick={() => setSignModal(true)}
-                                    style={{
-                                        padding: "0.5rem 1rem",
-                                        backgroundColor: "#10b981",
-                                        color: "white",
-                                        border: "none",
-                                        borderRadius: "6px",
-                                        fontSize: "0.875rem",
-                                        cursor: "pointer",
-                                    }}
                                 >
                                     Assinar
-                                </button>
+                                </Button>
                             </>
                         )}
-                        <button
+                        <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={handlePrintRecord}
-                            style={{
-                                padding: "0.5rem 1rem",
-                                backgroundColor: "#3b82f6",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "6px",
-                                fontSize: "0.875rem",
-                                cursor: "pointer",
-                            }}
                         >
                             Imprimir
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
-                {medicalRecord.signed_at && (
-                    <div
-                        style={{
-                            padding: "0.75rem",
-                            backgroundColor: "#f0fdf4",
-                            border: "1px solid #bbf7d0",
-                            borderRadius: "6px",
-                            fontSize: "0.875rem",
-                            color: "#166534",
-                        }}
-                    >
-                        ✅ Prontuário assinado digitalmente em{" "}
-                        {formatDateTime(medicalRecord.signed_at)}
+                {medicalRecord.status === "assinado" && (
+                    <div className="p-3 rounded-md text-sm text-emerald-800 bg-emerald-50 border border-emerald-200">
+                        ✅ Prontuário assinado digitalmente
                     </div>
                 )}
             </div>
 
             {/* Navegação por Abas */}
-            <div
-                style={{
-                    backgroundColor: "white",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    overflow: "hidden",
-                }}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        borderBottom: "1px solid #e5e7eb",
-                    }}
-                >
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="flex border-b border-gray-200">
                     {[
                         { key: "overview", label: "Visão Geral" },
                         {
@@ -448,247 +252,96 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
                             onClick={() =>
                                 setActiveTab(tab.key as typeof activeTab)
                             }
-                            style={{
-                                padding: "1rem 1.5rem",
-                                backgroundColor:
-                                    activeTab === tab.key
-                                        ? "#f9fafb"
-                                        : "transparent",
-                                color:
-                                    activeTab === tab.key
-                                        ? "#3b82f6"
-                                        : "#6b7280",
-                                border: "none",
-                                borderBottom:
-                                    activeTab === tab.key
-                                        ? "2px solid #3b82f6"
-                                        : "2px solid transparent",
-                                cursor: "pointer",
-                                fontSize: "0.875rem",
-                                fontWeight: "500",
-                            }}
+                            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === tab.key
+                                    ? "border-blue-500 text-blue-600 bg-gray-50"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                            }`}
                         >
                             {tab.label}
                         </button>
                     ))}
                 </div>
 
-                <div style={{ padding: "1.5rem" }}>
+                <div className="p-6">
                     {/* Aba Visão Geral */}
                     {activeTab === "overview" && (
-                        <div style={{ display: "grid", gap: "1.5rem" }}>
+                        <div className="grid gap-6">
                             <div>
-                                <h3
-                                    style={{
-                                        fontSize: "1rem",
-                                        fontWeight: "600",
-                                        color: "#111827",
-                                        margin: "0 0 0.5rem 0",
-                                    }}
-                                >
+                                <h3 className="text-base font-semibold text-gray-900 mb-2">
                                     Queixa Principal
                                 </h3>
-                                <p
-                                    style={{
-                                        color: "#374151",
-                                        lineHeight: "1.6",
-                                        margin: 0,
-                                    }}
-                                >
-                                    {medicalRecord.chief_complaint}
+                                <p className="text-gray-700 leading-relaxed">
+                                    {medicalRecord.queixa_principal ||
+                                        "Não informado"}
                                 </p>
                             </div>
 
                             <div>
-                                <h3
-                                    style={{
-                                        fontSize: "1rem",
-                                        fontWeight: "600",
-                                        color: "#111827",
-                                        margin: "0 0 0.5rem 0",
-                                    }}
-                                >
+                                <h3 className="text-base font-semibold text-gray-900 mb-2">
                                     Avaliação Médica
                                 </h3>
-                                <p
-                                    style={{
-                                        color: "#374151",
-                                        lineHeight: "1.6",
-                                        margin: 0,
-                                    }}
-                                >
-                                    {medicalRecord.assessment ||
+                                <p className="text-gray-700 leading-relaxed">
+                                    {medicalRecord.hipotese_diagnostica ||
                                         "Nenhuma avaliação registrada ainda."}
                                 </p>
                             </div>
 
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns:
-                                        "repeat(auto-fit, minmax(200px, 1fr))",
-                                    gap: "1rem",
-                                    padding: "1rem",
-                                    backgroundColor: "#f9fafb",
-                                    borderRadius: "8px",
-                                }}
-                            >
-                                <div style={{ textAlign: "center" }}>
-                                    <div
-                                        style={{
-                                            fontSize: "1.5rem",
-                                            fontWeight: "700",
-                                            color: "#dc2626",
-                                        }}
-                                    >
+                            <div className="grid sm:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-red-600">
                                         {diagnoses.length}
                                     </div>
-                                    <div
-                                        style={{
-                                            fontSize: "0.875rem",
-                                            color: "#6b7280",
-                                        }}
-                                    >
+                                    <div className="text-sm text-gray-500">
                                         Diagnósticos
                                     </div>
                                 </div>
-                                <div style={{ textAlign: "center" }}>
-                                    <div
-                                        style={{
-                                            fontSize: "1.5rem",
-                                            fontWeight: "700",
-                                            color: "#2563eb",
-                                        }}
-                                    >
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-blue-600">
                                         {prescriptions.length}
                                     </div>
-                                    <div
-                                        style={{
-                                            fontSize: "0.875rem",
-                                            color: "#6b7280",
-                                        }}
-                                    >
+                                    <div className="text-sm text-gray-500">
                                         Prescrições
                                     </div>
                                 </div>
-                                <div style={{ textAlign: "center" }}>
-                                    <div
-                                        style={{
-                                            fontSize: "1.5rem",
-                                            fontWeight: "700",
-                                            color: "#7c3aed",
-                                        }}
-                                    >
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-purple-600">
                                         {attachments.length}
                                     </div>
-                                    <div
-                                        style={{
-                                            fontSize: "0.875rem",
-                                            color: "#6b7280",
-                                        }}
-                                    >
+                                    <div className="text-sm text-gray-500">
                                         Anexos
                                     </div>
                                 </div>
                             </div>
 
                             <div>
-                                <h3
-                                    style={{
-                                        fontSize: "1rem",
-                                        fontWeight: "600",
-                                        color: "#111827",
-                                        margin: "0 0 0.5rem 0",
-                                    }}
-                                >
+                                <h3 className="text-base font-semibold text-gray-900 mb-2">
                                     Informações da Consulta
                                 </h3>
-                                <div
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns:
-                                            "repeat(auto-fit, minmax(250px, 1fr))",
-                                        gap: "1rem",
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            padding: "0.75rem",
-                                            backgroundColor: "#f9fafb",
-                                            borderRadius: "6px",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                fontSize: "0.75rem",
-                                                color: "#6b7280",
-                                                marginBottom: "0.25rem",
-                                            }}
-                                        >
+                                <div className="grid sm:grid-cols-3 gap-4">
+                                    <div className="p-3 bg-gray-50 rounded-md">
+                                        <div className="text-[11px] tracking-wide text-gray-500 mb-1">
                                             TIPO DE CONSULTA
                                         </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.875rem",
-                                                fontWeight: "500",
-                                                color: "#111827",
-                                                textTransform: "capitalize",
-                                            }}
-                                        >
-                                            {medicalRecord.consultation_type}
+                                        <div className="text-sm font-medium text-gray-900 capitalize">
+                                            {medicalRecord.tipo_consulta}
                                         </div>
                                     </div>
-                                    <div
-                                        style={{
-                                            padding: "0.75rem",
-                                            backgroundColor: "#f9fafb",
-                                            borderRadius: "6px",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                fontSize: "0.75rem",
-                                                color: "#6b7280",
-                                                marginBottom: "0.25rem",
-                                            }}
-                                        >
+                                    <div className="p-3 bg-gray-50 rounded-md">
+                                        <div className="text-[11px] tracking-wide text-gray-500 mb-1">
                                             CRIADO EM
                                         </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.875rem",
-                                                fontWeight: "500",
-                                                color: "#111827",
-                                            }}
-                                        >
+                                        <div className="text-sm font-medium text-gray-900">
                                             {formatDateTime(
                                                 medicalRecord.created_at
                                             )}
                                         </div>
                                     </div>
-                                    <div
-                                        style={{
-                                            padding: "0.75rem",
-                                            backgroundColor: "#f9fafb",
-                                            borderRadius: "6px",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                fontSize: "0.75rem",
-                                                color: "#6b7280",
-                                                marginBottom: "0.25rem",
-                                            }}
-                                        >
+                                    <div className="p-3 bg-gray-50 rounded-md">
+                                        <div className="text-[11px] tracking-wide text-gray-500 mb-1">
                                             ÚLTIMA ATUALIZAÇÃO
                                         </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.875rem",
-                                                fontWeight: "500",
-                                                color: "#111827",
-                                            }}
-                                        >
+                                        <div className="text-sm font-medium text-gray-900">
                                             {formatDateTime(
                                                 medicalRecord.updated_at
                                             )}
@@ -702,68 +355,30 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
                     {/* Aba Diagnósticos */}
                     {activeTab === "diagnoses" && (
                         <div>
-                            <h3
-                                style={{
-                                    fontSize: "1rem",
-                                    fontWeight: "600",
-                                    color: "#111827",
-                                    margin: "0 0 1rem 0",
-                                }}
-                            >
-                                Diagnósticos
-                            </h3>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-semibold text-gray-900 m-0">
+                                    Diagnósticos
+                                </h3>
+                            </div>
                             {diagnoses.length === 0 ? (
-                                <div
-                                    style={{
-                                        textAlign: "center",
-                                        padding: "2rem",
-                                        color: "#6b7280",
-                                    }}
-                                >
+                                <div className="text-center py-8 text-gray-500">
                                     Nenhum diagnóstico registrado neste
                                     prontuário.
                                 </div>
                             ) : (
-                                <div style={{ display: "grid", gap: "1rem" }}>
+                                <div className="grid gap-4">
                                     {diagnoses.map((diagnosis) => (
                                         <div
                                             key={diagnosis.id}
-                                            style={{
-                                                padding: "1rem",
-                                                border: "1px solid #e5e7eb",
-                                                borderRadius: "8px",
-                                                backgroundColor: "#f9fafb",
-                                            }}
+                                            className="p-4 border border-gray-200 rounded-lg bg-gray-50"
                                         >
-                                            <div
-                                                style={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "flex-start",
-                                                    marginBottom: "0.5rem",
-                                                }}
-                                            >
+                                            <div className="flex items-start justify-between mb-2">
                                                 <div>
-                                                    <div
-                                                        style={{
-                                                            fontSize:
-                                                                "0.875rem",
-                                                            fontWeight: "600",
-                                                            color: "#111827",
-                                                        }}
-                                                    >
+                                                    <div className="text-sm font-semibold text-gray-900">
                                                         {diagnosis.code} -{" "}
                                                         {diagnosis.description}
                                                     </div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.75rem",
-                                                            color: "#6b7280",
-                                                            marginTop:
-                                                                "0.25rem",
-                                                        }}
-                                                    >
+                                                    <div className="text-xs text-gray-500 mt-1">
                                                         Adicionado em{" "}
                                                         {formatDateTime(
                                                             diagnosis.created_at
@@ -771,23 +386,12 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
                                                     </div>
                                                 </div>
                                                 <span
-                                                    style={{
-                                                        padding:
-                                                            "0.25rem 0.5rem",
-                                                        fontSize: "0.75rem",
-                                                        fontWeight: "500",
-                                                        borderRadius: "4px",
-                                                        backgroundColor:
-                                                            diagnosis.type ===
-                                                            "primary"
-                                                                ? "#dbeafe"
-                                                                : "#f3e8ff",
-                                                        color:
-                                                            diagnosis.type ===
-                                                            "primary"
-                                                                ? "#1e40af"
-                                                                : "#7c3aed",
-                                                    }}
+                                                    className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                                        diagnosis.type ===
+                                                        "primary"
+                                                            ? "bg-blue-100 text-blue-800"
+                                                            : "bg-purple-100 text-purple-800"
+                                                    }`}
                                                 >
                                                     {diagnosis.type ===
                                                     "primary"
@@ -805,62 +409,28 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
                     {/* Aba Prescrições */}
                     {activeTab === "prescriptions" && (
                         <div>
-                            <h3
-                                style={{
-                                    fontSize: "1rem",
-                                    fontWeight: "600",
-                                    color: "#111827",
-                                    margin: "0 0 1rem 0",
-                                }}
-                            >
+                            <h3 className="text-base font-semibold text-gray-900 mb-4">
                                 Prescrições Médicas
                             </h3>
                             {prescriptions.length === 0 ? (
-                                <div
-                                    style={{
-                                        textAlign: "center",
-                                        padding: "2rem",
-                                        color: "#6b7280",
-                                    }}
-                                >
+                                <div className="text-center py-8 text-gray-500">
                                     Nenhuma prescrição registrada neste
                                     prontuário.
                                 </div>
                             ) : (
-                                <div style={{ display: "grid", gap: "1rem" }}>
+                                <div className="grid gap-4">
                                     {prescriptions.map((prescription) => (
                                         <div
                                             key={prescription.id}
-                                            style={{
-                                                padding: "1rem",
-                                                border: "1px solid #e5e7eb",
-                                                borderRadius: "8px",
-                                                backgroundColor: "#f9fafb",
-                                            }}
+                                            className="p-4 border border-gray-200 rounded-lg bg-gray-50"
                                         >
-                                            <div
-                                                style={{
-                                                    marginBottom: "0.75rem",
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        fontSize: "0.875rem",
-                                                        fontWeight: "600",
-                                                        color: "#111827",
-                                                        marginBottom: "0.25rem",
-                                                    }}
-                                                >
+                                            <div className="mb-3">
+                                                <div className="text-sm font-semibold text-gray-900 mb-1">
                                                     {
                                                         prescription.medication_name
                                                     }
                                                 </div>
-                                                <div
-                                                    style={{
-                                                        fontSize: "0.75rem",
-                                                        color: "#6b7280",
-                                                    }}
-                                                >
+                                                <div className="text-xs text-gray-500">
                                                     Prescrito em{" "}
                                                     {formatDateTime(
                                                         prescription.created_at
@@ -868,106 +438,39 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
                                                 </div>
                                             </div>
 
-                                            <div
-                                                style={{
-                                                    display: "grid",
-                                                    gridTemplateColumns:
-                                                        "repeat(auto-fit, minmax(150px, 1fr))",
-                                                    gap: "0.5rem",
-                                                    marginBottom: "0.75rem",
-                                                }}
-                                            >
+                                            <div className="grid grid-cols-3 gap-2 mb-3 max-[520px]:grid-cols-1">
                                                 <div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.7rem",
-                                                            color: "#6b7280",
-                                                            marginBottom:
-                                                                "0.125rem",
-                                                        }}
-                                                    >
+                                                    <div className="text-[11px] text-gray-500 mb-0.5">
                                                         DOSAGEM
                                                     </div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.75rem",
-                                                            fontWeight: "500",
-                                                            color: "#111827",
-                                                        }}
-                                                    >
+                                                    <div className="text-sm font-medium text-gray-900">
                                                         {prescription.dosage}
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.7rem",
-                                                            color: "#6b7280",
-                                                            marginBottom:
-                                                                "0.125rem",
-                                                        }}
-                                                    >
+                                                    <div className="text-[11px] text-gray-500 mb-0.5">
                                                         FREQUÊNCIA
                                                     </div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.75rem",
-                                                            fontWeight: "500",
-                                                            color: "#111827",
-                                                        }}
-                                                    >
+                                                    <div className="text-sm font-medium text-gray-900">
                                                         {prescription.frequency}
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.7rem",
-                                                            color: "#6b7280",
-                                                            marginBottom:
-                                                                "0.125rem",
-                                                        }}
-                                                    >
+                                                    <div className="text-[11px] text-gray-500 mb-0.5">
                                                         DURAÇÃO
                                                     </div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.75rem",
-                                                            fontWeight: "500",
-                                                            color: "#111827",
-                                                        }}
-                                                    >
+                                                    <div className="text-sm font-medium text-gray-900">
                                                         {prescription.duration}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {prescription.instructions && (
-                                                <div
-                                                    style={{
-                                                        padding: "0.5rem",
-                                                        backgroundColor:
-                                                            "#fffbeb",
-                                                        border: "1px solid #fed7aa",
-                                                        borderRadius: "4px",
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.7rem",
-                                                            color: "#92400e",
-                                                            marginBottom:
-                                                                "0.125rem",
-                                                        }}
-                                                    >
+                                                <div className="p-2 rounded border border-amber-200 bg-amber-50">
+                                                    <div className="text-[11px] text-amber-700 mb-0.5">
                                                         INSTRUÇÕES
                                                     </div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: "0.75rem",
-                                                            color: "#92400e",
-                                                        }}
-                                                    >
+                                                    <div className="text-sm text-amber-700">
                                                         {
                                                             prescription.instructions
                                                         }
@@ -984,67 +487,28 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
                     {/* Aba Anexos */}
                     {activeTab === "attachments" && (
                         <div>
-                            <h3
-                                style={{
-                                    fontSize: "1rem",
-                                    fontWeight: "600",
-                                    color: "#111827",
-                                    margin: "0 0 1rem 0",
-                                }}
-                            >
+                            <h3 className="text-base font-semibold text-gray-900 mb-4">
                                 Anexos
                             </h3>
                             {attachments.length === 0 ? (
-                                <div
-                                    style={{
-                                        textAlign: "center",
-                                        padding: "2rem",
-                                        color: "#6b7280",
-                                    }}
-                                >
+                                <div className="text-center py-8 text-gray-500">
                                     Nenhum anexo neste prontuário.
                                 </div>
                             ) : (
-                                <div style={{ display: "grid", gap: "1rem" }}>
+                                <div className="grid gap-4">
                                     {attachments.map((attachment) => (
                                         <div
                                             key={attachment.id}
-                                            style={{
-                                                padding: "1rem",
-                                                border: "1px solid #e5e7eb",
-                                                borderRadius: "8px",
-                                                backgroundColor: "#f9fafb",
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                            }}
+                                            className="p-4 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-between"
                                         >
                                             <div>
-                                                <div
-                                                    style={{
-                                                        fontSize: "0.875rem",
-                                                        fontWeight: "600",
-                                                        color: "#111827",
-                                                        marginBottom: "0.25rem",
-                                                    }}
-                                                >
+                                                <div className="text-sm font-semibold text-gray-900 mb-1">
                                                     {attachment.filename}
                                                 </div>
-                                                <div
-                                                    style={{
-                                                        fontSize: "0.75rem",
-                                                        color: "#6b7280",
-                                                        marginBottom: "0.25rem",
-                                                    }}
-                                                >
+                                                <div className="text-xs text-gray-500 mb-1">
                                                     {attachment.description}
                                                 </div>
-                                                <div
-                                                    style={{
-                                                        fontSize: "0.75rem",
-                                                        color: "#6b7280",
-                                                    }}
-                                                >
+                                                <div className="text-xs text-gray-500">
                                                     {formatFileSize(
                                                         attachment.file_size
                                                     )}{" "}
@@ -1054,24 +518,17 @@ const MedicalRecordDetailPage: React.FC<MedicalRecordDetailPageProps> = ({
                                                     )}
                                                 </div>
                                             </div>
-                                            <button
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
                                                 onClick={() =>
                                                     showInfo(
                                                         `Baixando ${attachment.filename}...`
                                                     )
                                                 }
-                                                style={{
-                                                    padding: "0.5rem 1rem",
-                                                    backgroundColor: "#3b82f6",
-                                                    color: "white",
-                                                    border: "none",
-                                                    borderRadius: "6px",
-                                                    fontSize: "0.75rem",
-                                                    cursor: "pointer",
-                                                }}
                                             >
                                                 Baixar
-                                            </button>
+                                            </Button>
                                         </div>
                                     ))}
                                 </div>

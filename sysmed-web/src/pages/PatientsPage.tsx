@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { formatCPF, formatPhone } from "../hooks/useFormValidation";
 import axios, { AxiosError } from "axios";
 import PatientFormModal from "../components/PatientFormModal";
 import Card from "../components/Card";
@@ -39,6 +40,11 @@ const PatientsPage: React.FC = () => {
     );
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
     const [currentPage, setCurrentPage] = useState(1);
+    const [serverPage, setServerPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [total, setTotal] = useState(0);
+    const [lastPage, setLastPage] = useState(1);
+    const [serverDriven, setServerDriven] = useState(false);
     const [deleteModal, setDeleteModal] = useState<{
         isOpen: boolean;
         patient: Patient | null;
@@ -60,6 +66,7 @@ const PatientsPage: React.FC = () => {
                 );
                 setPatients([]);
                 setFilteredPatients([]);
+                setServerDriven(false);
                 return;
             }
 
@@ -71,7 +78,9 @@ const PatientsPage: React.FC = () => {
                         Accept: "application/json",
                     },
                     params: {
-                        per_page: 100,
+                        per_page: perPage,
+                        page: serverPage,
+                        q: searchTerm || undefined,
                         sort_by: "created_at",
                         sort_order: "desc",
                         ...(statusFilter !== "todos" && {
@@ -87,41 +96,100 @@ const PatientsPage: React.FC = () => {
                 success?: boolean;
                 data?: Paginated<Patient> | Patient[];
             };
-            const payload = response.data as ApiSuccess | Patient[];
+            const payload = response.data as
+                | ApiSuccess
+                | Patient[]
+                | Record<string, unknown>;
 
             let list: Patient[] = [];
             if (Array.isArray(payload)) {
                 list = payload as Patient[];
-            } else if (
-                payload &&
-                typeof payload === "object" &&
-                payload.data &&
-                typeof payload.data === "object" &&
-                Array.isArray((payload.data as Paginated<Patient>).data)
-            ) {
-                // { success, data: { data: [...] } }
-                const p = payload.data as Paginated<Patient>;
-                list = p.data;
-            } else if (
-                payload &&
-                typeof payload === "object" &&
-                Array.isArray(payload.data as Patient[])
-            ) {
-                // { success, data: [...] }
-                list = payload.data as Patient[];
+            } else if (payload && typeof payload === "object") {
+                // { success, data: { data: [...], current_page, per_page, total, last_page } }
+                if (
+                    (payload as ApiSuccess).data &&
+                    typeof (payload as ApiSuccess).data === "object" &&
+                    Array.isArray(
+                        ((payload as ApiSuccess).data as Paginated<Patient>)
+                            .data
+                    )
+                ) {
+                    const p = (payload as ApiSuccess)
+                        .data as Paginated<Patient> & Record<string, unknown>;
+                    list = p.data;
+                    const cp = Number(
+                        (p as Record<string, unknown>).current_page ??
+                            serverPage
+                    );
+                    const pp = Number(
+                        (p as Record<string, unknown>).per_page ?? perPage
+                    );
+                    const tt = Number(
+                        (p as Record<string, unknown>).total ?? list.length
+                    );
+                    const lp = Number(
+                        (p as Record<string, unknown>).last_page ??
+                            Math.max(1, Math.ceil(tt / pp))
+                    );
+                    setServerDriven(true);
+                    setServerPage(cp);
+                    setPerPage(pp);
+                    setTotal(tt);
+                    setLastPage(lp);
+                } else if (
+                    Array.isArray((payload as ApiSuccess).data as Patient[])
+                ) {
+                    // { success, data: [...] }
+                    list = (payload as ApiSuccess).data as Patient[];
+                    setServerDriven(false);
+                } else if (
+                    Object.prototype.hasOwnProperty.call(payload, "data") &&
+                    Array.isArray((payload as { data: unknown }).data)
+                ) {
+                    // { data: [...] }
+                    list = (payload as { data: Patient[] }).data;
+                    setServerDriven(false);
+                } else if (
+                    Object.prototype.hasOwnProperty.call(payload, "data") &&
+                    typeof (payload as { data: unknown }).data === "object" &&
+                    Array.isArray(
+                        (payload as { data: Record<string, unknown> }).data
+                            .data as unknown[]
+                    )
+                ) {
+                    // { data: { data: [...], current_page, ... } }
+                    const inner = (payload as { data: Record<string, unknown> })
+                        .data;
+                    const d = Array.isArray(inner.data)
+                        ? (inner.data as Patient[])
+                        : [];
+                    list = d;
+                    const cp = Number(inner.current_page ?? serverPage);
+                    const pp = Number(inner.per_page ?? perPage);
+                    const tt = Number(inner.total ?? d.length);
+                    const lp = Number(
+                        inner.last_page ?? Math.max(1, Math.ceil(tt / pp))
+                    );
+                    setServerDriven(true);
+                    setServerPage(cp);
+                    setPerPage(pp);
+                    setTotal(tt);
+                    setLastPage(lp);
+                }
             }
 
-            // Complementar dados para exibição (fallbacks visuais)
+            // Complementar dados para exibição (somente status/created_at)
             const patientsWithStatus = list.map((patient: Patient) => ({
                 ...patient,
                 status: patient.status ?? "ativo",
-                telefone: patient.telefone || "(11) 9999-9999",
-                email: patient.email || "paciente@email.com",
-                endereco: patient.endereco || "Endereço não informado",
+                telefone: patient.telefone,
+                email: patient.email,
+                endereco: patient.endereco,
                 created_at: patient.created_at || new Date().toISOString(),
             }));
 
             setPatients(patientsWithStatus);
+            // Normalizamos a lista para a exibição; filtros adicionais são aplicados fora (quando não server-driven)
             setFilteredPatients(patientsWithStatus);
         } catch (error) {
             const anyErr = error as AxiosError<{
@@ -142,7 +210,7 @@ const PatientsPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [statusFilter]);
+    }, [statusFilter, perPage, serverPage, searchTerm]);
 
     useEffect(() => {
         fetchPatients();
@@ -169,7 +237,7 @@ const PatientsPage: React.FC = () => {
         let filtered = patients;
 
         // Filtrar por termo de busca
-        if (searchTerm) {
+        if (searchTerm && !serverDriven) {
             filtered = filtered.filter(
                 (patient) =>
                     patient.nome_completo
@@ -229,8 +297,16 @@ const PatientsPage: React.FC = () => {
         });
 
         setFilteredPatients(filtered);
-        setCurrentPage(1); // Reset página ao filtrar
-    }, [searchTerm, statusFilter, ageFilter, sortBy, sortOrder, patients]);
+        if (!serverDriven) setCurrentPage(1); // Reset página ao filtrar no client-side
+    }, [
+        searchTerm,
+        statusFilter,
+        ageFilter,
+        sortBy,
+        sortOrder,
+        patients,
+        serverDriven,
+    ]);
 
     const handleEdit = (patient: Patient) => {
         setEditingPatient(patient);
@@ -270,13 +346,21 @@ const PatientsPage: React.FC = () => {
     };
 
     // Paginação
-    const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+    const totalPages = serverDriven
+        ? lastPage
+        : Math.ceil(filteredPatients.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const currentPatients = filteredPatients.slice(startIndex, endIndex);
+    const currentPatients = serverDriven
+        ? filteredPatients
+        : filteredPatients.slice(startIndex, endIndex);
 
     const handlePageChange = (page: number) => {
-        setCurrentPage(page);
+        if (serverDriven) {
+            setServerPage(page);
+        } else {
+            setCurrentPage(page);
+        }
     };
 
     if (loading) {
@@ -334,9 +418,15 @@ const PatientsPage: React.FC = () => {
                             margin: 0,
                         }}
                     >
-                        {filteredPatients.length} paciente
-                        {filteredPatients.length !== 1 ? "s" : ""} encontrado
-                        {filteredPatients.length !== 1 ? "s" : ""}
+                        {serverDriven ? total : filteredPatients.length}{" "}
+                        paciente
+                        {(serverDriven ? total : filteredPatients.length) !== 1
+                            ? "s"
+                            : ""}{" "}
+                        encontrado
+                        {(serverDriven ? total : filteredPatients.length) !== 1
+                            ? "s"
+                            : ""}
                     </p>
                 </div>
 
@@ -344,22 +434,31 @@ const PatientsPage: React.FC = () => {
                     <button
                         onClick={handleAdd}
                         style={{
-                            padding: "0.75rem 1.5rem",
+                            padding: "0.50rem 0.75rem",
                             backgroundColor: "#3b82f6",
                             color: "white",
                             border: "none",
                             borderRadius: "8px",
                             fontSize: "0.875rem",
-                            fontWeight: "500",
+                            fontWeight: 500,
                             cursor: "pointer",
                             transition: "all 0.2s",
                             display: "flex",
                             alignItems: "center",
-                            gap: "0.5rem",
+                            gap: "0.4rem",
                         }}
+                        title="Novo Paciente"
                     >
-                        <span>+</span>
-                        Novo Paciente
+                        <span
+                            style={{
+                                display: "inline-block",
+                                width: 14,
+                                textAlign: "center",
+                            }}
+                        >
+                            +
+                        </span>
+                        <span>Novo Paciente</span>
                     </button>
                 )}
             </div>
@@ -456,7 +555,13 @@ const PatientsPage: React.FC = () => {
                         >
                             Ordenar por
                         </label>
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                alignItems: "center",
+                            }}
+                        >
                             <select
                                 value={sortBy}
                                 onChange={(e) =>
@@ -490,13 +595,17 @@ const PatientsPage: React.FC = () => {
                                     )
                                 }
                                 style={{
-                                    flex: 1,
-                                    padding: "0.75rem",
+                                    width: 40,
+                                    height: 40,
+                                    padding: 0,
                                     border: "1px solid #d1d5db",
                                     backgroundColor: "white",
                                     borderRadius: "8px",
                                     cursor: "pointer",
                                     fontSize: "0.875rem",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
                                 }}
                                 title={`Ordenação ${
                                     sortOrder === "asc"
@@ -506,103 +615,111 @@ const PatientsPage: React.FC = () => {
                             >
                                 {sortOrder === "asc" ? "↑" : "↓"}
                             </button>
+                            <button
+                                onClick={() =>
+                                    setShowAdvancedFilters(!showAdvancedFilters)
+                                }
+                                style={{
+                                    height: 40,
+                                    padding: 0,
+                                    border: "1px solid #d1d5db",
+                                    backgroundColor: "white",
+                                    borderRadius: "8px",
+                                    cursor: "pointer",
+                                    fontSize: "0.875rem",
+                                    color: "#374151",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    paddingLeft: "0.75rem",
+                                    paddingRight: "0.75rem",
+                                    whiteSpace: "nowrap",
+                                }}
+                                title={
+                                    showAdvancedFilters
+                                        ? "Ocultar filtros"
+                                        : "Mostrar filtros"
+                                }
+                            >
+                                {showAdvancedFilters
+                                    ? "− Filtros"
+                                    : "+ Filtros"}
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Filtros Avançados */}
-                <div style={{ marginTop: "1rem" }}>
-                    <button
-                        onClick={() =>
-                            setShowAdvancedFilters(!showAdvancedFilters)
-                        }
+                {/* Filtros Avançados - conteúdo */}
+                {showAdvancedFilters && (
+                    <div
                         style={{
-                            padding: "0.5rem 1rem",
-                            border: "1px solid #d1d5db",
-                            backgroundColor: "transparent",
-                            borderRadius: "6px",
-                            cursor: "pointer",
-                            fontSize: "0.875rem",
-                            color: "#374151",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
+                            marginTop: "1rem",
+                            padding: "1rem",
+                            backgroundColor: "#f9fafb",
+                            borderRadius: "8px",
+                            border: "1px solid #e5e7eb",
                         }}
                     >
-                        {showAdvancedFilters ? "−" : "+"} Filtros Avançados
-                    </button>
-
-                    {showAdvancedFilters && (
-                        <div
-                            style={{
-                                marginTop: "1rem",
-                                padding: "1rem",
-                                backgroundColor: "#f9fafb",
-                                borderRadius: "8px",
-                                border: "1px solid #e5e7eb",
-                            }}
-                        >
-                            <div>
-                                <label
+                        <div>
+                            <label
+                                style={{
+                                    display: "block",
+                                    fontSize: "0.875rem",
+                                    fontWeight: "500",
+                                    color: "#374151",
+                                    marginBottom: "0.5rem",
+                                }}
+                            >
+                                Faixa Etária
+                            </label>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: "0.5rem",
+                                    alignItems: "center",
+                                }}
+                            >
+                                <input
+                                    type="number"
+                                    placeholder="Idade min"
+                                    value={ageFilter.min}
+                                    onChange={(e) =>
+                                        setAgeFilter((prev) => ({
+                                            ...prev,
+                                            min: e.target.value,
+                                        }))
+                                    }
                                     style={{
-                                        display: "block",
+                                        flex: 1,
+                                        padding: "0.5rem",
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: "6px",
                                         fontSize: "0.875rem",
-                                        fontWeight: "500",
-                                        color: "#374151",
-                                        marginBottom: "0.5rem",
                                     }}
-                                >
-                                    Faixa Etária
-                                </label>
-                                <div
+                                />
+                                <span style={{ color: "#6b7280" }}>−</span>
+                                <input
+                                    type="number"
+                                    placeholder="Idade max"
+                                    value={ageFilter.max}
+                                    onChange={(e) =>
+                                        setAgeFilter((prev) => ({
+                                            ...prev,
+                                            max: e.target.value,
+                                        }))
+                                    }
                                     style={{
-                                        display: "flex",
-                                        gap: "0.5rem",
-                                        alignItems: "center",
+                                        flex: 1,
+                                        padding: "0.5rem",
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: "6px",
+                                        fontSize: "0.875rem",
                                     }}
-                                >
-                                    <input
-                                        type="number"
-                                        placeholder="Idade min"
-                                        value={ageFilter.min}
-                                        onChange={(e) =>
-                                            setAgeFilter((prev) => ({
-                                                ...prev,
-                                                min: e.target.value,
-                                            }))
-                                        }
-                                        style={{
-                                            flex: 1,
-                                            padding: "0.5rem",
-                                            border: "1px solid #d1d5db",
-                                            borderRadius: "6px",
-                                            fontSize: "0.875rem",
-                                        }}
-                                    />
-                                    <span style={{ color: "#6b7280" }}>−</span>
-                                    <input
-                                        type="number"
-                                        placeholder="Idade max"
-                                        value={ageFilter.max}
-                                        onChange={(e) =>
-                                            setAgeFilter((prev) => ({
-                                                ...prev,
-                                                max: e.target.value,
-                                            }))
-                                        }
-                                        style={{
-                                            flex: 1,
-                                            padding: "0.5rem",
-                                            border: "1px solid #d1d5db",
-                                            borderRadius: "6px",
-                                            fontSize: "0.875rem",
-                                        }}
-                                    />
-                                </div>
+                                />
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Botão Limpar */}
                 <div style={{ marginTop: "1rem" }}>
@@ -615,7 +732,7 @@ const PatientsPage: React.FC = () => {
                             setSortOrder("asc");
                         }}
                         style={{
-                            padding: "0.75rem 1rem",
+                            padding: "0.50rem 0.75rem",
                             border: "1px solid #d1d5db",
                             backgroundColor: "white",
                             borderRadius: "8px",
@@ -648,7 +765,7 @@ const PatientsPage: React.FC = () => {
                                     >
                                         <th
                                             style={{
-                                                padding: "1rem",
+                                                padding: "0 1rem 1rem 1rem",
                                                 textAlign: "left",
                                                 fontSize: "0.875rem",
                                                 fontWeight: "500",
@@ -659,7 +776,7 @@ const PatientsPage: React.FC = () => {
                                         </th>
                                         <th
                                             style={{
-                                                padding: "1rem",
+                                                padding: "0 1rem 1rem 1rem",
                                                 textAlign: "left",
                                                 fontSize: "0.875rem",
                                                 fontWeight: "500",
@@ -670,7 +787,7 @@ const PatientsPage: React.FC = () => {
                                         </th>
                                         <th
                                             style={{
-                                                padding: "1rem",
+                                                padding: "0 1rem 1rem 1rem",
                                                 textAlign: "left",
                                                 fontSize: "0.875rem",
                                                 fontWeight: "500",
@@ -681,7 +798,7 @@ const PatientsPage: React.FC = () => {
                                         </th>
                                         <th
                                             style={{
-                                                padding: "1rem",
+                                                padding: "0 1rem 1rem 1rem",
                                                 textAlign: "left",
                                                 fontSize: "0.875rem",
                                                 fontWeight: "500",
@@ -692,7 +809,7 @@ const PatientsPage: React.FC = () => {
                                         </th>
                                         <th
                                             style={{
-                                                padding: "1rem",
+                                                padding: "0 1rem 1rem 1rem",
                                                 textAlign: "right",
                                                 fontSize: "0.875rem",
                                                 fontWeight: "500",
@@ -731,7 +848,11 @@ const PatientsPage: React.FC = () => {
                                                     >
                                                         CPF:{" "}
                                                         {patient.formatted_cpf ||
-                                                            patient.cpf}
+                                                            (patient.cpf
+                                                                ? formatCPF(
+                                                                      patient.cpf
+                                                                  )
+                                                                : "—")}
                                                     </div>
                                                 </div>
                                             </td>
@@ -744,9 +865,15 @@ const PatientsPage: React.FC = () => {
                                                 >
                                                     <div>
                                                         {patient.formatted_phone ||
-                                                            patient.telefone}
+                                                            (patient.telefone
+                                                                ? formatPhone(
+                                                                      patient.telefone
+                                                                  )
+                                                                : "—")}
                                                     </div>
-                                                    <div>{patient.email}</div>
+                                                    <div>
+                                                        {patient.email || "—"}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td style={{ padding: "1rem" }}>
@@ -900,22 +1027,38 @@ const PatientsPage: React.FC = () => {
                         >
                             <button
                                 onClick={() =>
-                                    handlePageChange(currentPage - 1)
+                                    handlePageChange(
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) - 1
+                                    )
                                 }
-                                disabled={currentPage === 1}
+                                disabled={
+                                    (serverDriven
+                                        ? serverPage
+                                        : currentPage) === 1
+                                }
                                 style={{
                                     padding: "0.5rem 1rem",
                                     border: "1px solid #d1d5db",
                                     backgroundColor:
-                                        currentPage === 1 ? "#f9fafb" : "white",
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) === 1
+                                            ? "#f9fafb"
+                                            : "white",
                                     borderRadius: "6px",
                                     cursor:
-                                        currentPage === 1
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) === 1
                                             ? "not-allowed"
                                             : "pointer",
                                     fontSize: "0.875rem",
                                     color:
-                                        currentPage === 1
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) === 1
                                             ? "#9ca3af"
                                             : "#374151",
                                 }}
@@ -923,88 +1066,141 @@ const PatientsPage: React.FC = () => {
                                 Anterior
                             </button>
 
-                            {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                .filter((page) => {
-                                    // Mostrar sempre as primeiras 2, últimas 2, e páginas próximas à atual
-                                    return (
-                                        page <= 2 ||
-                                        page > totalPages - 2 ||
-                                        Math.abs(page - currentPage) <= 1
-                                    );
-                                })
-                                .map((page, index, visiblePages) => {
-                                    const prevPage = visiblePages[index - 1];
-                                    const shouldShowEllipsis =
-                                        prevPage && page - prevPage > 1;
-
-                                    return (
-                                        <React.Fragment key={page}>
-                                            {shouldShowEllipsis && (
-                                                <span
-                                                    style={{
-                                                        color: "#6b7280",
-                                                        padding: "0 0.5rem",
-                                                    }}
-                                                >
-                                                    ...
-                                                </span>
-                                            )}
-                                            <button
-                                                onClick={() =>
-                                                    handlePageChange(page)
-                                                }
-                                                style={{
-                                                    padding: "0.5rem 1rem",
-                                                    border: "1px solid #d1d5db",
-                                                    backgroundColor:
-                                                        currentPage === page
-                                                            ? "#3b82f6"
-                                                            : "white",
-                                                    color:
-                                                        currentPage === page
-                                                            ? "white"
-                                                            : "#374151",
-                                                    borderRadius: "6px",
-                                                    cursor: "pointer",
-                                                    fontSize: "0.875rem",
-                                                    fontWeight:
-                                                        currentPage === page
-                                                            ? "600"
-                                                            : "400",
-                                                }}
-                                            >
-                                                {page}
-                                            </button>
-                                        </React.Fragment>
-                                    );
-                                })}
+                            {!serverDriven && (
+                                <>
+                                    {Array.from(
+                                        { length: totalPages },
+                                        (_, i) => i + 1
+                                    )
+                                        .filter((page) => {
+                                            // Mostrar sempre as primeiras 2, últimas 2, e páginas próximas à atual
+                                            return (
+                                                page <= 2 ||
+                                                page > totalPages - 2 ||
+                                                Math.abs(page - currentPage) <=
+                                                    1
+                                            );
+                                        })
+                                        .map((page, index, visiblePages) => {
+                                            const prevPage =
+                                                visiblePages[index - 1];
+                                            const shouldShowEllipsis =
+                                                prevPage && page - prevPage > 1;
+                                            return (
+                                                <React.Fragment key={page}>
+                                                    {shouldShowEllipsis && (
+                                                        <span
+                                                            style={{
+                                                                color: "#6b7280",
+                                                                padding:
+                                                                    "0 0.5rem",
+                                                            }}
+                                                        >
+                                                            ...
+                                                        </span>
+                                                    )}
+                                                    <button
+                                                        onClick={() =>
+                                                            handlePageChange(
+                                                                page
+                                                            )
+                                                        }
+                                                        style={{
+                                                            padding:
+                                                                "0.5rem 1rem",
+                                                            border: "1px solid #d1d5db",
+                                                            backgroundColor:
+                                                                currentPage ===
+                                                                page
+                                                                    ? "#3b82f6"
+                                                                    : "white",
+                                                            color:
+                                                                currentPage ===
+                                                                page
+                                                                    ? "white"
+                                                                    : "#374151",
+                                                            borderRadius: "6px",
+                                                            cursor: "pointer",
+                                                            fontSize:
+                                                                "0.875rem",
+                                                            fontWeight:
+                                                                currentPage ===
+                                                                page
+                                                                    ? "600"
+                                                                    : "400",
+                                                        }}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                </>
+                            )}
 
                             <button
                                 onClick={() =>
-                                    handlePageChange(currentPage + 1)
+                                    handlePageChange(
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) + 1
+                                    )
                                 }
-                                disabled={currentPage === totalPages}
+                                disabled={
+                                    (serverDriven
+                                        ? serverPage
+                                        : currentPage) === totalPages
+                                }
                                 style={{
                                     padding: "0.5rem 1rem",
                                     border: "1px solid #d1d5db",
                                     backgroundColor:
-                                        currentPage === totalPages
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) === totalPages
                                             ? "#f9fafb"
                                             : "white",
                                     borderRadius: "6px",
                                     cursor:
-                                        currentPage === totalPages
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) === totalPages
                                             ? "not-allowed"
                                             : "pointer",
                                     fontSize: "0.875rem",
                                     color:
-                                        currentPage === totalPages
+                                        (serverDriven
+                                            ? serverPage
+                                            : currentPage) === totalPages
                                             ? "#9ca3af"
                                             : "#374151",
                                 }}
                             >
                                 Próxima
                             </button>
+                            {serverDriven && (
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => {
+                                        setPerPage(Number(e.target.value));
+                                        setServerPage(1);
+                                    }}
+                                    style={{
+                                        padding: "0.5rem 0.75rem",
+                                        border: "1px solid #d1d5db",
+                                        backgroundColor: "white",
+                                        borderRadius: "6px",
+                                        cursor: "pointer",
+                                        fontSize: "0.875rem",
+                                    }}
+                                >
+                                    {[10, 20, 50].map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}/página
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
                     )}
                 </Card>

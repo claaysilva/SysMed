@@ -1,63 +1,68 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-    Search,
     Plus,
     FileText,
-    Eye,
+    Download,
+    Printer,
+    User,
+    FileSignature,
     Edit3,
     Trash2,
     Calendar,
-    User,
     Clock,
-    X,
 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+// Removido ícone de busca para seguir o padrão visual do Patients
+import {
+    useMedicalRecords,
+    type MedicalRecord,
+} from "../hooks/useMedicalRecords";
+import { useToast } from "../hooks/useToast";
+import { formatCPF } from "../hooks/useFormValidation";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
+import Card from "../components/Card";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-interface Patient {
-    id: number;
-    nome_completo: string;
-    data_nascimento: string;
-    cpf: string;
-    telefone?: string;
-}
-
-interface Doctor {
-    id: number;
-    name: string;
-}
-
-interface MedicalRecord {
-    id: number;
-    patient: Patient;
-    doctor: Doctor;
-    consultation_date: string;
-    consultation_time: string;
-    consultation_type: "consulta" | "retorno" | "urgencia" | "exame";
-    status: "rascunho" | "finalizado" | "assinado";
-    chief_complaint: string;
-    assessment: string;
-    diagnoses_count: number;
-    prescriptions_count: number;
-    attachments_count: number;
-    signed_at?: string;
-    created_at: string;
-    updated_at: string;
-}
+// Usaremos o tipo MedicalRecord do hook
 
 const MedicalRecordsPage: React.FC = () => {
-    // Estados para dados
-    const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
-    const [loading, setLoading] = useState(false);
+    // Hook de dados
+    const {
+        medicalRecords,
+        loading,
+        pagination,
+        fetchMedicalRecords,
+        updateMedicalRecord,
+        deleteMedicalRecord,
+    } = useMedicalRecords();
+    const { showSuccess, showError, showInfo } = useToast();
     const [deleting, setDeleting] = useState(false);
+    const navigate = useNavigate();
 
     // Estados para filtros
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
     const [dateFromFilter, setDateFromFilter] = useState("");
+    const [dateToFilter, setDateToFilter] = useState("");
+    const [page, setPage] = useState(1);
+    const [showFilters, setShowFilters] = useState(false);
+    type SortBy = "data_consulta" | "status" | "tipo_consulta";
+    const [sortBy, setSortBy] = useState<SortBy>("data_consulta");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+    const handleSortClick = (field: SortBy) => {
+        setSortBy((prev) => (prev === field ? prev : field));
+        setSortOrder((prev) =>
+            sortBy === field ? (prev === "asc" ? "desc" : "asc") : "asc"
+        );
+    };
+    const renderSortIndicator = (field: SortBy) => {
+        if (sortBy !== field) return null;
+        return <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>;
+    };
+    const perPage = 15;
 
     // Estados para modal de exclusão
     const [deleteModal, setDeleteModal] = useState<{
@@ -68,205 +73,45 @@ const MedicalRecordsPage: React.FC = () => {
         record: null,
     });
 
-    // Funções de notificação
-    const showSuccess = useCallback((message: string) => {
-        console.log("Success:", message);
-    }, []);
-
-    const showError = useCallback((message: string) => {
-        console.error("Error:", message);
-    }, []);
-
-    const showInfo = useCallback((message: string) => {
-        console.info("Info:", message);
-    }, []);
-
     const loadMedicalRecords = useCallback(async () => {
         try {
-            setLoading(true);
-
-            // Simular delay de API
-            await new Promise((resolve) => setTimeout(resolve, 800));
-
-            // Dados mockados para demonstração
-            const mockRecords: MedicalRecord[] = [
-                {
-                    id: 1,
-                    patient: {
-                        id: 1,
-                        nome_completo: "Maria Silva Santos",
-                        data_nascimento: "1985-03-15",
-                        cpf: "123.456.789-00",
-                    },
-                    doctor: {
-                        id: 1,
-                        name: "Dr. João Carvalho",
-                    },
-                    consultation_date: "2025-09-17",
-                    consultation_time: "14:30",
-                    consultation_type: "consulta",
-                    status: "finalizado",
-                    chief_complaint: "Dor nas costas há 3 dias",
-                    assessment: "Provável distensão muscular lombar",
-                    diagnoses_count: 2,
-                    prescriptions_count: 3,
-                    attachments_count: 1,
-                    created_at: "2025-09-17T14:30:00Z",
-                    updated_at: "2025-09-17T15:45:00Z",
-                },
-                {
-                    id: 2,
-                    patient: {
-                        id: 2,
-                        nome_completo: "Pedro Oliveira Costa",
-                        data_nascimento: "1972-11-22",
-                        cpf: "987.654.321-00",
-                    },
-                    doctor: {
-                        id: 2,
-                        name: "Dra. Ana Paula Silva",
-                    },
-                    consultation_date: "2025-09-16",
-                    consultation_time: "10:00",
-                    consultation_type: "retorno",
-                    status: "assinado",
-                    chief_complaint: "Retorno pós-cirúrgico",
-                    assessment: "Evolução favorável, sem complicações",
-                    diagnoses_count: 1,
-                    prescriptions_count: 2,
-                    attachments_count: 3,
-                    signed_at: "2025-09-16T16:30:00Z",
-                    created_at: "2025-09-16T10:00:00Z",
-                    updated_at: "2025-09-16T16:30:00Z",
-                },
-                {
-                    id: 3,
-                    patient: {
-                        id: 3,
-                        nome_completo: "Carlos Eduardo Mendes",
-                        data_nascimento: "1990-07-08",
-                        cpf: "555.666.777-88",
-                    },
-                    doctor: {
-                        id: 1,
-                        name: "Dr. João Carvalho",
-                    },
-                    consultation_date: "2025-09-15",
-                    consultation_time: "09:15",
-                    consultation_type: "urgencia",
-                    status: "rascunho",
-                    chief_complaint: "Dor abdominal intensa",
-                    assessment: "",
-                    diagnoses_count: 0,
-                    prescriptions_count: 0,
-                    attachments_count: 0,
-                    created_at: "2025-09-15T09:15:00Z",
-                    updated_at: "2025-09-15T09:15:00Z",
-                },
-                {
-                    id: 4,
-                    patient: {
-                        id: 4,
-                        nome_completo: "Ana Paula Costa Silva",
-                        data_nascimento: "1988-02-28",
-                        cpf: "111.222.333-44",
-                    },
-                    doctor: {
-                        id: 3,
-                        name: "Dr. Roberto Fernandes",
-                    },
-                    consultation_date: "2025-09-14",
-                    consultation_time: "16:45",
-                    consultation_type: "consulta",
-                    status: "finalizado",
-                    chief_complaint: "Cefaleia recorrente",
-                    assessment:
-                        "Cefaleia tensional, possivelmente relacionada ao estresse",
-                    diagnoses_count: 1,
-                    prescriptions_count: 1,
-                    attachments_count: 0,
-                    created_at: "2025-09-14T16:45:00Z",
-                    updated_at: "2025-09-14T17:30:00Z",
-                },
-                {
-                    id: 5,
-                    patient: {
-                        id: 5,
-                        nome_completo: "José Santos Lima",
-                        data_nascimento: "1965-12-03",
-                        cpf: "999.888.777-66",
-                    },
-                    doctor: {
-                        id: 2,
-                        name: "Dra. Ana Paula Silva",
-                    },
-                    consultation_date: "2025-09-13",
-                    consultation_time: "11:30",
-                    consultation_type: "consulta",
-                    status: "assinado",
-                    chief_complaint: "Consulta de rotina - checkup",
-                    assessment:
-                        "Paciente sem queixas, exames dentro da normalidade",
-                    diagnoses_count: 0,
-                    prescriptions_count: 0,
-                    attachments_count: 2,
-                    signed_at: "2025-09-13T12:15:00Z",
-                    created_at: "2025-09-13T11:30:00Z",
-                    updated_at: "2025-09-13T12:15:00Z",
-                },
-            ];
-
-            // Aplicar filtros (simulação)
-            let filteredRecords = mockRecords;
-
-            if (searchTerm) {
-                filteredRecords = filteredRecords.filter(
-                    (record) =>
-                        record.patient.nome_completo
-                            .toLowerCase()
-                            .includes(searchTerm.toLowerCase()) ||
-                        record.chief_complaint
-                            ?.toLowerCase()
-                            .includes(searchTerm.toLowerCase()) ||
-                        record.assessment
-                            ?.toLowerCase()
-                            .includes(searchTerm.toLowerCase())
-                );
-            }
-
-            if (statusFilter) {
-                filteredRecords = filteredRecords.filter(
-                    (record) => record.status === statusFilter
-                );
-            }
-
-            if (typeFilter) {
-                filteredRecords = filteredRecords.filter(
-                    (record) => record.consultation_type === typeFilter
-                );
-            }
-
-            setMedicalRecords(filteredRecords);
-        } catch (error) {
-            console.error("Erro ao carregar prontuários:", error);
+            await fetchMedicalRecords({
+                status: statusFilter || undefined,
+                tipo_consulta: typeFilter || undefined,
+                search: searchTerm || undefined,
+                data_inicio: dateFromFilter || undefined,
+                data_fim: dateToFilter || undefined,
+                per_page: perPage,
+                page,
+                sort_by: sortBy,
+                sort_order: sortOrder,
+            });
+        } catch {
             showError("Erro ao carregar prontuários");
-        } finally {
-            setLoading(false);
         }
-    }, [searchTerm, statusFilter, typeFilter, showError]);
+    }, [
+        fetchMedicalRecords,
+        statusFilter,
+        typeFilter,
+        searchTerm,
+        dateFromFilter,
+        dateToFilter,
+        page,
+        sortBy,
+        sortOrder,
+        showError,
+    ]);
 
     useEffect(() => {
         loadMedicalRecords();
     }, [loadMedicalRecords]);
 
     const handleRecordClick = (record: MedicalRecord) => {
-        showInfo(`Visualizando prontuário de ${record.patient.nome_completo}`);
-        // Navegar para página de detalhes
+        navigate(`/medical-records/${record.id}`);
     };
 
     const handleEditRecord = (record: MedicalRecord) => {
-        showInfo(`Editando prontuário de ${record.patient.nome_completo}`);
-        // Navegar para página de edição
+        navigate(`/medical-records/${record.id}/edit`);
     };
 
     const handleDeleteRecord = (record: MedicalRecord) => {
@@ -279,26 +124,15 @@ const MedicalRecordsPage: React.FC = () => {
     const handleSignRecord = async (record: MedicalRecord) => {
         try {
             showInfo("Assinando prontuário...");
-
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // Atualizar status do prontuário
-            setMedicalRecords((prev) =>
-                prev.map((r) =>
-                    r.id === record.id
-                        ? {
-                              ...r,
-                              status: "assinado" as const,
-                              signed_at: new Date().toISOString(),
-                          }
-                        : r
-                )
-            );
-
-            showSuccess(
-                `Prontuário de ${record.patient.nome_completo} assinado com sucesso!`
-            );
+            const updated = await updateMedicalRecord(record.id, {
+                status: "assinado",
+            });
+            if (updated) {
+                showSuccess(
+                    `Prontuário de ${record.patient.nome_completo} assinado com sucesso!`
+                );
+                await loadMedicalRecords();
+            }
         } catch (error) {
             console.error("Erro ao assinar prontuário:", error);
             showError("Erro ao assinar prontuário");
@@ -307,31 +141,28 @@ const MedicalRecordsPage: React.FC = () => {
 
     const confirmDelete = async () => {
         if (!deleteModal.record) return;
-
         try {
             setDeleting(true);
-
-            // Simular API call
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // Remover prontuário da lista
-            setMedicalRecords((prev) =>
-                prev.filter((r) => r.id !== deleteModal.record!.id)
-            );
-
-            setDeleteModal({ isOpen: false, record: null });
-            showSuccess("Prontuário excluído com sucesso!");
+            const ok = await deleteMedicalRecord(deleteModal.record.id);
+            if (ok) {
+                showSuccess(
+                    `Prontuário de ${deleteModal.record.patient.nome_completo} excluído com sucesso!`
+                );
+                await loadMedicalRecords();
+            } else {
+                showError("Não foi possível excluir o prontuário");
+            }
         } catch (error) {
             console.error("Erro ao excluir prontuário:", error);
             showError("Erro ao excluir prontuário");
         } finally {
             setDeleting(false);
+            setDeleteModal({ isOpen: false, record: null });
         }
     };
 
     const handleNewRecord = () => {
-        showInfo("Redirecionando para novo prontuário...");
-        // Navegar para página de criação
+        navigate("/medical-records/new");
     };
 
     const clearFilters = () => {
@@ -339,13 +170,161 @@ const MedicalRecordsPage: React.FC = () => {
         setStatusFilter("");
         setTypeFilter("");
         setDateFromFilter("");
+        setDateToFilter("");
+        setSortBy("data_consulta");
+        setSortOrder("desc");
+        setPage(1);
+        loadMedicalRecords();
+    };
+
+    // Exportação CSV (página atual)
+    const handleExportCsv = () => {
+        if (!medicalRecords || medicalRecords.length === 0) return;
+        const sep = ",";
+        const headers = [
+            "Data",
+            "Hora",
+            "Paciente",
+            "Tipo",
+            "Status",
+            "Médico",
+            "Queixa",
+        ];
+        const rows = medicalRecords.map((r) => [
+            format(new Date(r.data_consulta), "dd/MM/yyyy", { locale: ptBR }),
+            r.horario_consulta || "",
+            r.patient?.nome_completo || "",
+            r.tipo_consulta || "",
+            r.status || "",
+            r.user?.name || "",
+            (r.queixa_principal || "")
+                .replaceAll("\n", " ")
+                .replaceAll(sep, " "),
+        ]);
+        const csv = [headers.join(sep), ...rows.map((r) => r.join(sep))].join(
+            "\n"
+        );
+        const blob = new Blob(["\uFEFF" + csv], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `prontuarios_${format(new Date(), "yyyyLLdd_HHmm")}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    // Impressão (página atual)
+    const handlePrint = () => {
+        const items = medicalRecords || [];
+        const title = "Prontuários";
+        const safe = (s: unknown) =>
+            String(s ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+        const rows = items
+            .map((r) => {
+                const data = r.data_consulta
+                    ? format(new Date(r.data_consulta), "dd/MM/yyyy", {
+                          locale: ptBR,
+                      })
+                    : "—";
+                const hora = r.horario_consulta || "";
+                const paciente = r.patient?.nome_completo || "—";
+                const cpf = r.patient?.cpf ? formatCPF(r.patient.cpf) : "";
+                const tipo = r.tipo_consulta || "—";
+                const status = r.status || "—";
+                const medico = r.user?.name || "—";
+                const queixa = safe(r.queixa_principal || "");
+                return `
+                <tr>
+                    <td style="padding:6px;border:1px solid #e5e7eb">${data}${
+                    hora ? ` ${hora}` : ""
+                }</td>
+                    <td style="padding:6px;border:1px solid #e5e7eb">${safe(
+                        paciente
+                    )}${
+                    cpf
+                        ? `<div style='color:#6b7280;font-size:11px'>${cpf}</div>`
+                        : ""
+                }</td>
+                    <td style="padding:6px;border:1px solid #e5e7eb">${safe(
+                        tipo
+                    )}</td>
+                    <td style="padding:6px;border:1px solid #e5e7eb;text-transform:capitalize">${safe(
+                        status
+                    )}</td>
+                    <td style="padding:6px;border:1px solid #e5e7eb">${safe(
+                        medico
+                    )}</td>
+                    <td style="padding:6px;border:1px solid #e5e7eb">${queixa}</td>
+                </tr>`;
+            })
+            .join("");
+
+        const html = `
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+        body{ font-family: Arial, sans-serif; color:#111827; padding:16px }
+        h1{ font-size:18px; margin:0 0 12px 0; }
+        table{ width:100%; border-collapse: collapse; font-size:12px; }
+        th, td{ border:1px solid #e5e7eb; padding:6px; text-align:left }
+        thead{ background:#f9fafb }
+        @media print { .no-print{ display:none } }
+    </style>
+    </head>
+    <body>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h1>${title}</h1>
+            <span style="color:#6b7280;font-size:12px">Gerado em ${format(
+                new Date(),
+                "dd/MM/yyyy HH:mm"
+            )}</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Paciente</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Médico</th>
+                    <th>Queixa</th>
+                </tr>
+            </thead>
+            <tbody>${
+                rows ||
+                "<tr><td colspan=6 style='padding:8px'>Sem itens</td></tr>"
+            }</tbody>
+        </table>
+        <div class="no-print" style="margin-top:16px">
+            <button onclick="window.print();">Imprimir</button>
+        </div>
+    </body>
+    </html>`;
+
+        const w = window.open("", "_blank");
+        if (!w) return;
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+        w.focus();
     };
 
     const getStatusColor = (status: string) => {
         const colors = {
             rascunho: "#f59e0b", // yellow-500
             finalizado: "#10b981", // emerald-500
-            assinado: "#3b82f6", // blue-500
+            assinado: "#059669", // emerald-600 (padrão SysMed)
         };
         return colors[status as keyof typeof colors] || "#6b7280";
     };
@@ -354,306 +333,1015 @@ const MedicalRecordsPage: React.FC = () => {
         const colors = {
             consulta: "#10b981", // emerald-500
             retorno: "#3b82f6", // blue-500
-            urgencia: "#ef4444", // red-500
+            emergencia: "#ef4444", // red-500
             exame: "#8b5cf6", // violet-500
-        };
-        return colors[type as keyof typeof colors] || "#6b7280";
+            cirurgia: "#f59e0b", // amber-500
+        } as const;
+        return (colors as Record<string, string>)[type] || "#6b7280";
     };
 
     return (
-        <div className="flex-1 overflow-hidden">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">
-                            Prontuários Médicos
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Gerencie os prontuários e histórico de atendimentos
-                        </p>
-                    </div>
-                    <Button
-                        onClick={handleNewRecord}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+        <div
+            className="flex-1 overflow-hidden"
+            style={{ backgroundColor: "#f8fafc", minHeight: "100vh" }}
+        >
+            {/* Header inline no conteúdo, como Patients */}
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 0,
+                    padding: "2rem",
+                    gap: "1rem",
+                    flexWrap: "wrap",
+                }}
+            >
+                <div>
+                    <h1
+                        style={{
+                            fontSize: "2rem",
+                            fontWeight: 700,
+                            color: "#111827",
+                            margin: "0 0 0.5rem 0",
+                        }}
                     >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Novo Prontuário
-                    </Button>
+                        Prontuários Médicos
+                    </h1>
+                    <p
+                        style={{
+                            fontSize: "1rem",
+                            color: "#6b7280",
+                            margin: 0,
+                        }}
+                    >
+                        {pagination?.total ?? medicalRecords.length} prontuário
+                        {(pagination?.total ?? medicalRecords.length) === 1
+                            ? ""
+                            : "s"}{" "}
+                        encontrado
+                        {(pagination?.total ?? medicalRecords.length) === 1
+                            ? ""
+                            : "s"}
+                    </p>
+                </div>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                    }}
+                >
+                    <button
+                        onClick={handleExportCsv}
+                        style={{
+                            padding: "0.50rem 0.75rem",
+                            backgroundColor: "#3b82f6",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "8px",
+                            fontSize: "0.875rem",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                        }}
+                        title="Exportar CSV"
+                    >
+                        <Download style={{ width: 14, height: 14 }} />
+                        <span>Exportar CSV</span>
+                    </button>
+                    <button
+                        onClick={handlePrint}
+                        style={{
+                            padding: "0.50rem 0.75rem",
+                            backgroundColor: "#3b82f6",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "8px",
+                            fontSize: "0.875rem",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                        }}
+                        title="Imprimir"
+                    >
+                        <Printer style={{ width: 14, height: 14 }} />
+                        <span>Imprimir</span>
+                    </button>
+                    <button
+                        onClick={handleNewRecord}
+                        style={{
+                            padding: "0.50rem 0.75rem",
+                            backgroundColor: "#3b82f6",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "8px",
+                            fontSize: "0.875rem",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                        }}
+                        title="Novo Prontuário"
+                    >
+                        <Plus style={{ width: 14, height: 14 }} />
+                        <span>Novo Prontuário</span>
+                    </button>
                 </div>
             </div>
-
-            {/* Filtros */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                    {/* Busca */}
-                    <div className="lg:col-span-2">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            {/* Conteúdo principal com espaçamento entre cards */}
+            <div style={{ padding: "0 2rem 2rem 2rem" }} className="space-y-12">
+                {/* Filtros (modelo Pacientes) */}
+                <Card padding="medium" className="mb-8">
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                                "repeat(auto-fit, minmax(250px, 1fr))",
+                            gap: "1rem",
+                            alignItems: "end",
+                        }}
+                    >
+                        {/* Buscar */}
+                        <div>
+                            <label
+                                style={{
+                                    display: "block",
+                                    fontSize: "0.875rem",
+                                    fontWeight: 500,
+                                    color: "#374151",
+                                    marginBottom: "0.5rem",
+                                }}
+                            >
+                                Buscar prontuários
+                            </label>
                             <input
                                 type="text"
-                                placeholder="Buscar por paciente, queixa..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Paciente, tipo, status..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{
+                                    width: "100%",
+                                    padding: "0.75rem",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "8px",
+                                    fontSize: "0.875rem",
+                                    transition: "border-color 0.2s",
+                                }}
                             />
+                        </div>
+                        {/* Status */}
+                        <div>
+                            <label
+                                style={{
+                                    display: "block",
+                                    fontSize: "0.875rem",
+                                    fontWeight: 500,
+                                    color: "#374151",
+                                    marginBottom: "0.5rem",
+                                }}
+                            >
+                                Filtrar por status
+                            </label>
+                            <select
+                                style={{
+                                    width: "100%",
+                                    padding: "0.75rem",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "8px",
+                                    fontSize: "0.875rem",
+                                    backgroundColor: "white",
+                                    cursor: "pointer",
+                                }}
+                                value={statusFilter}
+                                onChange={(e) =>
+                                    setStatusFilter(e.target.value)
+                                }
+                            >
+                                <option value="">Todos os status</option>
+                                <option value="rascunho">Rascunho</option>
+                                <option value="finalizado">Finalizado</option>
+                                <option value="assinado">Assinado</option>
+                            </select>
+                        </div>
+                        {/* Ordenar por */}
+                        <div>
+                            <label
+                                style={{
+                                    display: "block",
+                                    fontSize: "0.875rem",
+                                    fontWeight: 500,
+                                    color: "#374151",
+                                    marginBottom: "0.5rem",
+                                }}
+                            >
+                                Ordenar por
+                            </label>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: "0.5rem",
+                                    alignItems: "center",
+                                }}
+                            >
+                                <select
+                                    style={{
+                                        flex: 2,
+                                        padding: "0.75rem",
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: "8px",
+                                        fontSize: "0.875rem",
+                                        backgroundColor: "white",
+                                        cursor: "pointer",
+                                    }}
+                                    value={sortBy}
+                                    onChange={(e) =>
+                                        setSortBy(e.target.value as SortBy)
+                                    }
+                                >
+                                    <option value="data_consulta">
+                                        Data da consulta
+                                    </option>
+                                    <option value="status">Status</option>
+                                    <option value="tipo_consulta">Tipo</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    title={
+                                        sortOrder === "asc"
+                                            ? "Ordenação crescente"
+                                            : "Ordenação decrescente"
+                                    }
+                                    onClick={() =>
+                                        setSortOrder((o) =>
+                                            o === "asc" ? "desc" : "asc"
+                                        )
+                                    }
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        padding: 0,
+                                        border: "1px solid #d1d5db",
+                                        backgroundColor: "white",
+                                        borderRadius: "8px",
+                                        cursor: "pointer",
+                                        fontSize: "0.875rem",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                    }}
+                                >
+                                    {sortOrder === "asc" ? "↑" : "↓"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    title={
+                                        showFilters
+                                            ? "Ocultar filtros"
+                                            : "Mostrar filtros"
+                                    }
+                                    style={{
+                                        height: 40,
+                                        padding: 0,
+                                        border: "1px solid #d1d5db",
+                                        backgroundColor: "white",
+                                        borderRadius: "8px",
+                                        cursor: "pointer",
+                                        fontSize: "0.875rem",
+                                        color: "#374151",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        paddingLeft: "0.75rem",
+                                        paddingRight: "0.75rem",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    {showFilters ? "− Filtros" : "+ Filtros"}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Filtro Status */}
-                    <div>
-                        <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="">Todos os Status</option>
-                            <option value="rascunho">Rascunho</option>
-                            <option value="finalizado">Finalizado</option>
-                            <option value="assinado">Assinado</option>
-                        </select>
-                    </div>
-
-                    {/* Filtro Tipo */}
-                    <div>
-                        <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value)}
-                        >
-                            <option value="">Todos os Tipos</option>
-                            <option value="consulta">Consulta</option>
-                            <option value="retorno">Retorno</option>
-                            <option value="urgencia">Urgência</option>
-                            <option value="exame">Exame</option>
-                        </select>
-                    </div>
-
-                    {/* Data De */}
-                    <div>
-                        <input
-                            type="date"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={dateFromFilter}
-                            onChange={(e) => setDateFromFilter(e.target.value)}
-                        />
-                    </div>
+                    {/* Filtros Avançados */}
+                    {showFilters && (
+                        <div style={{ marginTop: "1rem" }}>
+                            <h4 className="text-sm font-medium text-gray-700 mb-3">
+                                Filtros Avançados
+                            </h4>
+                            <div
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                        "repeat(auto-fit, minmax(250px, 1fr))",
+                                    gap: "1rem",
+                                    padding: "1rem",
+                                    backgroundColor: "#f9fafb",
+                                    border: "1px solid #e5e7eb",
+                                    borderRadius: "8px",
+                                    marginTop: "1rem",
+                                }}
+                            >
+                                <div>
+                                    <label
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.875rem",
+                                            fontWeight: 500,
+                                            color: "#374151",
+                                            marginBottom: "0.5rem",
+                                        }}
+                                    >
+                                        Tipo
+                                    </label>
+                                    <select
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.5rem",
+                                            border: "1px solid #d1d5db",
+                                            borderRadius: "6px",
+                                            fontSize: "0.875rem",
+                                            backgroundColor: "white",
+                                            cursor: "pointer",
+                                        }}
+                                        value={typeFilter}
+                                        onChange={(e) =>
+                                            setTypeFilter(e.target.value)
+                                        }
+                                    >
+                                        <option value="">Todos os tipos</option>
+                                        <option value="consulta">
+                                            Consulta
+                                        </option>
+                                        <option value="retorno">Retorno</option>
+                                        <option value="emergencia">
+                                            Emergência
+                                        </option>
+                                        <option value="exame">Exame</option>
+                                        <option value="cirurgia">
+                                            Cirurgia
+                                        </option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.875rem",
+                                            fontWeight: 500,
+                                            color: "#374151",
+                                            marginBottom: "0.5rem",
+                                        }}
+                                    >
+                                        Data inicial
+                                    </label>
+                                    <input
+                                        type="date"
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.5rem",
+                                            border: "1px solid #d1d5db",
+                                            borderRadius: "6px",
+                                            fontSize: "0.875rem",
+                                        }}
+                                        value={dateFromFilter}
+                                        onChange={(e) =>
+                                            setDateFromFilter(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div>
+                                    <label
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.875rem",
+                                            fontWeight: 500,
+                                            color: "#374151",
+                                            marginBottom: "0.5rem",
+                                        }}
+                                    >
+                                        Data final
+                                    </label>
+                                    <input
+                                        type="date"
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.5rem",
+                                            border: "1px solid #d1d5db",
+                                            borderRadius: "6px",
+                                            fontSize: "0.875rem",
+                                        }}
+                                        value={dateToFilter}
+                                        onChange={(e) =>
+                                            setDateToFilter(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Limpar Filtros */}
-                    <div>
-                        <Button
+                    <div style={{ marginTop: "1rem" }}>
+                        <button
                             onClick={clearFilters}
-                            variant="outline"
-                            className="w-full"
+                            style={{
+                                padding: "0.50rem 0.75rem",
+                                border: "1px solid #d1d5db",
+                                backgroundColor: "white",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "0.875rem",
+                                color: "#374151",
+                            }}
                         >
-                            <X className="w-4 h-4 mr-2" />
-                            Limpar
-                        </Button>
+                            Limpar Filtros
+                        </button>
                     </div>
-                </div>
-            </div>
+                </Card>
 
-            {/* Lista */}
-            <div className="flex-1 overflow-auto p-6">
-                {loading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                        <span className="ml-2 text-gray-600">
-                            Carregando prontuários...
-                        </span>
-                    </div>
-                ) : medicalRecords.length === 0 ? (
-                    <div className="text-center py-12">
-                        <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">
-                            Nenhum prontuário encontrado
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Não há prontuários que correspondam aos filtros
-                            aplicados.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Paciente
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Data/Hora
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tipo
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Status
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Queixa Principal
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Médico
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Ações
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {medicalRecords.map((record) => (
+                {/* Espaçador explícito entre as bolhas */}
+                <div style={{ height: 36 }} />
+
+                {/* Resultados (card) */}
+                <Card padding="medium" className="mt-10 md:mt-12">
+                    {loading ? (
+                        <div className="flex items-center justify-center h-40 p-6">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                            <span className="ml-2 text-gray-600">
+                                Carregando prontuários...
+                            </span>
+                        </div>
+                    ) : medicalRecords.length === 0 ? (
+                        <div className="text-center py-12">
+                            <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">
+                                Nenhum prontuário encontrado
+                            </h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Não há prontuários que correspondam aos filtros
+                                aplicados.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div style={{ overflowX: "auto" }}>
+                                <table
+                                    style={{
+                                        width: "100%",
+                                        borderCollapse: "collapse",
+                                    }}
+                                >
+                                    <thead>
                                         <tr
-                                            key={record.id}
-                                            className="hover:bg-gray-50 cursor-pointer"
-                                            onClick={() =>
-                                                handleRecordClick(record)
-                                            }
+                                            style={{
+                                                borderBottom:
+                                                    "1px solid #e5e7eb",
+                                            }}
                                         >
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <div className="flex-shrink-0 h-10 w-10">
-                                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                                            <User className="h-5 w-5 text-blue-600" />
+                                            <th
+                                                style={{
+                                                    padding: "0 1rem 1rem 1rem",
+                                                    textAlign: "left",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: 500,
+                                                    color: "#374151",
+                                                }}
+                                            >
+                                                Paciente
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "0 1rem 1rem 1rem",
+                                                    textAlign: "center",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: 500,
+                                                    color: "#374151",
+                                                    cursor: "pointer",
+                                                    userSelect: "none",
+                                                }}
+                                                onClick={() =>
+                                                    handleSortClick(
+                                                        "data_consulta"
+                                                    )
+                                                }
+                                                title="Ordenar por data da consulta"
+                                            >
+                                                <span
+                                                    style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        gap: "0.25rem",
+                                                    }}
+                                                >
+                                                    Data/Hora{" "}
+                                                    {renderSortIndicator(
+                                                        "data_consulta"
+                                                    )}
+                                                </span>
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "0 1rem 1rem 1rem",
+                                                    textAlign: "center",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: 500,
+                                                    color: "#374151",
+                                                    cursor: "pointer",
+                                                    userSelect: "none",
+                                                }}
+                                                onClick={() =>
+                                                    handleSortClick(
+                                                        "tipo_consulta"
+                                                    )
+                                                }
+                                                title="Ordenar por tipo"
+                                            >
+                                                <span
+                                                    style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        gap: "0.25rem",
+                                                    }}
+                                                >
+                                                    Tipo{" "}
+                                                    {renderSortIndicator(
+                                                        "tipo_consulta"
+                                                    )}
+                                                </span>
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "0 1rem 1rem 1rem",
+                                                    textAlign: "center",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: 500,
+                                                    color: "#374151",
+                                                    cursor: "pointer",
+                                                    userSelect: "none",
+                                                }}
+                                                onClick={() =>
+                                                    handleSortClick("status")
+                                                }
+                                                title="Ordenar por status"
+                                            >
+                                                <span
+                                                    style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        gap: "0.25rem",
+                                                    }}
+                                                >
+                                                    Status{" "}
+                                                    {renderSortIndicator(
+                                                        "status"
+                                                    )}
+                                                </span>
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "0 1rem 1rem 1rem",
+                                                    textAlign: "left",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: 500,
+                                                    color: "#374151",
+                                                    width: "clamp(12rem, 24vw, 22rem)",
+                                                }}
+                                            >
+                                                Queixa Principal
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "0 1rem 1rem 1rem",
+                                                    textAlign: "left",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: 500,
+                                                    color: "#374151",
+                                                }}
+                                            >
+                                                Médico
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "0 1rem 1rem 1rem",
+                                                    textAlign: "right",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: 500,
+                                                    color: "#374151",
+                                                }}
+                                            >
+                                                Ações
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {medicalRecords.map((record) => (
+                                            <tr
+                                                key={record.id}
+                                                style={{
+                                                    borderBottom:
+                                                        "1px solid #f3f4f6",
+                                                    cursor: "pointer",
+                                                }}
+                                                onClick={() =>
+                                                    handleRecordClick(record)
+                                                }
+                                            >
+                                                <td
+                                                    style={{
+                                                        padding: "1rem",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "left",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            justifyContent:
+                                                                "flex-start",
+                                                            width: "100%",
+                                                        }}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                width: 40,
+                                                                height: 40,
+                                                                borderRadius:
+                                                                    "9999px",
+                                                                backgroundColor:
+                                                                    "#d1fae5",
+                                                                display: "flex",
+                                                                alignItems:
+                                                                    "center",
+                                                                justifyContent:
+                                                                    "center",
+                                                                flexShrink: 0,
+                                                            }}
+                                                        >
+                                                            <User
+                                                                style={{
+                                                                    width: 20,
+                                                                    height: 20,
+                                                                    color: "#059669",
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                marginLeft:
+                                                                    "1rem",
+                                                            }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    fontSize:
+                                                                        "0.875rem",
+                                                                    fontWeight: 600,
+                                                                    color: "#111827",
+                                                                }}
+                                                            >
+                                                                {
+                                                                    record
+                                                                        .patient
+                                                                        .nome_completo
+                                                                }
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize:
+                                                                        "0.875rem",
+                                                                    color: "#6b7280",
+                                                                }}
+                                                            >
+                                                                {record.patient
+                                                                    ?.cpf
+                                                                    ? formatCPF(
+                                                                          record
+                                                                              .patient
+                                                                              .cpf
+                                                                      )
+                                                                    : ""}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div className="ml-4">
-                                                        <div className="text-sm font-medium text-gray-900">
-                                                            {
-                                                                record.patient
-                                                                    .nome_completo
-                                                            }
-                                                        </div>
-                                                        <div className="text-sm text-gray-500">
-                                                            {record.patient.cpf}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center text-sm text-gray-900">
-                                                    <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                                                    <div>
+                                                </td>
+                                                <td
+                                                    style={{
+                                                        padding: "1rem",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "center",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            justifyContent:
+                                                                "center",
+                                                            width: "100%",
+                                                            fontSize:
+                                                                "0.875rem",
+                                                            color: "#111827",
+                                                        }}
+                                                    >
+                                                        <Calendar
+                                                            style={{
+                                                                width: 16,
+                                                                height: 16,
+                                                                marginRight: 8,
+                                                                color: "#9ca3af",
+                                                            }}
+                                                        />
                                                         <div>
-                                                            {format(
-                                                                new Date(
-                                                                    record.consultation_date
-                                                                ),
-                                                                "dd/MM/yyyy",
-                                                                { locale: ptBR }
-                                                            )}
-                                                        </div>
-                                                        <div className="text-gray-500 flex items-center">
-                                                            <Clock className="w-3 h-3 mr-1" />
-                                                            {
-                                                                record.consultation_time
-                                                            }
+                                                            <div>
+                                                                {format(
+                                                                    new Date(
+                                                                        record.data_consulta
+                                                                    ),
+                                                                    "dd/MM/yyyy",
+                                                                    {
+                                                                        locale: ptBR,
+                                                                    }
+                                                                )}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    color: "#6b7280",
+                                                                    display:
+                                                                        "flex",
+                                                                    alignItems:
+                                                                        "center",
+                                                                }}
+                                                            >
+                                                                <Clock
+                                                                    style={{
+                                                                        width: 12,
+                                                                        height: 12,
+                                                                        marginRight: 4,
+                                                                    }}
+                                                                />
+                                                                {
+                                                                    record.horario_consulta
+                                                                }
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span
-                                                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+                                                </td>
+                                                <td
                                                     style={{
-                                                        backgroundColor: `${getTypeColor(
-                                                            record.consultation_type
-                                                        )}20`,
-                                                        color: getTypeColor(
-                                                            record.consultation_type
-                                                        ),
+                                                        padding: "1rem",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "center",
                                                     }}
                                                 >
-                                                    {record.consultation_type}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span
-                                                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+                                                    <span
+                                                        style={{
+                                                            display:
+                                                                "inline-flex",
+                                                            alignItems:
+                                                                "center",
+                                                            padding:
+                                                                "0.125rem 0.625rem",
+                                                            borderRadius:
+                                                                "9999px",
+                                                            fontSize: "0.75rem",
+                                                            fontWeight: 500,
+                                                            textTransform:
+                                                                "capitalize",
+                                                            backgroundColor: `${getTypeColor(
+                                                                record.tipo_consulta
+                                                            )}20`,
+                                                            color: getTypeColor(
+                                                                record.tipo_consulta
+                                                            ),
+                                                        }}
+                                                    >
+                                                        {record.tipo_consulta}
+                                                    </span>
+                                                </td>
+                                                <td
                                                     style={{
-                                                        backgroundColor: `${getStatusColor(
-                                                            record.status
-                                                        )}20`,
-                                                        color: getStatusColor(
-                                                            record.status
-                                                        ),
+                                                        padding: "1rem",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "center",
                                                     }}
                                                 >
-                                                    {record.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm text-gray-900 max-w-xs truncate">
-                                                    {record.chief_complaint ||
-                                                        "Não informado"}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {record.doctor.name}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex items-center space-x-2">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleRecordClick(
-                                                                record
-                                                            );
+                                                    <span
+                                                        style={{
+                                                            display:
+                                                                "inline-flex",
+                                                            alignItems:
+                                                                "center",
+                                                            padding:
+                                                                "0.125rem 0.625rem",
+                                                            borderRadius:
+                                                                "9999px",
+                                                            fontSize: "0.75rem",
+                                                            fontWeight: 500,
+                                                            textTransform:
+                                                                "capitalize",
+                                                            backgroundColor: `${getStatusColor(
+                                                                record.status
+                                                            )}20`,
+                                                            color: getStatusColor(
+                                                                record.status
+                                                            ),
                                                         }}
-                                                        className="text-blue-600 hover:text-blue-900"
-                                                        title="Visualizar"
                                                     >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleEditRecord(
-                                                                record
-                                                            );
+                                                        {record.status}
+                                                    </span>
+                                                </td>
+                                                <td
+                                                    style={{
+                                                        padding: "1rem",
+                                                        textAlign: "left",
+                                                        width: "clamp(12rem, 24vw, 22rem)",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            fontSize:
+                                                                "0.875rem",
+                                                            color: "#111827",
+                                                            overflow: "hidden",
+                                                            whiteSpace:
+                                                                "normal",
+                                                            wordBreak:
+                                                                "break-word",
+                                                            overflowWrap:
+                                                                "anywhere",
                                                         }}
-                                                        className="text-yellow-600 hover:text-yellow-900"
-                                                        title="Editar"
                                                     >
-                                                        <Edit3 className="w-4 h-4" />
-                                                    </button>
-                                                    {record.status ===
-                                                        "finalizado" && (
+                                                        {record.queixa_principal ||
+                                                            "Não informado"}
+                                                    </div>
+                                                </td>
+                                                <td
+                                                    style={{
+                                                        padding: "1rem",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "left",
+                                                        fontSize: "0.875rem",
+                                                        color: "#111827",
+                                                    }}
+                                                >
+                                                    {record.user.name}
+                                                </td>
+                                                <td
+                                                    style={{
+                                                        padding: "1rem",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "right",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: "0.5rem",
+                                                            justifyContent:
+                                                                "flex-end",
+                                                        }}
+                                                    >
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleSignRecord(
+                                                                handleEditRecord(
                                                                     record
                                                                 );
                                                             }}
-                                                            className="text-green-600 hover:text-green-900"
-                                                            title="Assinar"
+                                                            style={{
+                                                                color: "#b45309",
+                                                                background:
+                                                                    "transparent",
+                                                                border: "none",
+                                                                cursor: "pointer",
+                                                            }}
+                                                            title="Editar"
                                                         >
-                                                            <FileText className="w-4 h-4" />
+                                                            <Edit3
+                                                                style={{
+                                                                    width: 16,
+                                                                    height: 16,
+                                                                }}
+                                                            />
                                                         </button>
-                                                    )}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDeleteRecord(
-                                                                record
-                                                            );
-                                                        }}
-                                                        className="text-red-600 hover:text-red-900"
-                                                        title="Excluir"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                                                        {record.status ===
+                                                            "finalizado" && (
+                                                            <button
+                                                                onClick={(
+                                                                    e
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                    handleSignRecord(
+                                                                        record
+                                                                    );
+                                                                }}
+                                                                style={{
+                                                                    color: "#16a34a",
+                                                                    background:
+                                                                        "transparent",
+                                                                    border: "none",
+                                                                    cursor: "pointer",
+                                                                }}
+                                                                title="Assinar"
+                                                            >
+                                                                <FileSignature
+                                                                    style={{
+                                                                        width: 16,
+                                                                        height: 16,
+                                                                    }}
+                                                                />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteRecord(
+                                                                    record
+                                                                );
+                                                            }}
+                                                            style={{
+                                                                color: "#dc2626",
+                                                                background:
+                                                                    "transparent",
+                                                                border: "none",
+                                                                cursor: "pointer",
+                                                            }}
+                                                            title="Excluir"
+                                                        >
+                                                            <Trash2
+                                                                style={{
+                                                                    width: 16,
+                                                                    height: 16,
+                                                                }}
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {/* Paginação */}
+                            <div className="flex items-center justify-between p-4 border-t border-gray-200">
+                                <div className="text-sm text-gray-600">
+                                    {pagination
+                                        ? `Página ${pagination.current_page} de ${pagination.last_page} — ${pagination.total} registros`
+                                        : null}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        disabled={
+                                            !pagination ||
+                                            pagination.current_page <= 1
+                                        }
+                                        onClick={() =>
+                                            setPage((p) => Math.max(1, p - 1))
+                                        }
+                                    >
+                                        Anterior
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        disabled={
+                                            !pagination ||
+                                            pagination.current_page >=
+                                                (pagination.last_page || 1)
+                                        }
+                                        onClick={() =>
+                                            setPage((p) =>
+                                                pagination
+                                                    ? Math.min(
+                                                          pagination.last_page,
+                                                          p + 1
+                                                      )
+                                                    : p + 1
+                                            )
+                                        }
+                                    >
+                                        Próximo
+                                    </Button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </Card>
             </div>
 
             {/* Modal de Confirmação de Exclusão */}

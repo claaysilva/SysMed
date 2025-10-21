@@ -1,11 +1,11 @@
 import React from "react";
 import { useDashboard } from "../hooks/useDashboard";
 import StatCard from "../components/StatCard";
-import RecentActivityCard from "../components/RecentActivityCard";
+// Removido: Atividade recente
 import UpcomingAppointmentsCard from "../components/UpcomingAppointmentsCard";
 
 const DashboardPage: React.FC = () => {
-    const { stats, recentActivity, loading, error, refreshData } = useDashboard();
+    const { stats, loading, error, refreshData } = useDashboard();
 
     const userName = localStorage.getItem("userName") || "Usuário";
     const userRole = localStorage.getItem("userRole") || "user";
@@ -45,7 +45,9 @@ const DashboardPage: React.FC = () => {
                     }}
                 >
                     <div>
-                        <h1 style={{ color: "#1976d2", marginBottom: "0.5rem" }}>
+                        <h1
+                            style={{ color: "#1976d2", marginBottom: "0.5rem" }}
+                        >
                             Dashboard do SysMed
                         </h1>
                         <p style={{ color: "#666", fontSize: "1.1rem" }}>
@@ -57,7 +59,7 @@ const DashboardPage: React.FC = () => {
                                 : " (Recepcionista)"}
                         </p>
                     </div>
-                    
+
                     <button
                         onClick={refreshData}
                         disabled={loading}
@@ -102,7 +104,8 @@ const DashboardPage: React.FC = () => {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 color: "#666",
-                                animation: "pulse 1.5s ease-in-out infinite alternate",
+                                animation:
+                                    "pulse 1.5s ease-in-out infinite alternate",
                             }}
                         >
                             Carregando...
@@ -117,15 +120,17 @@ const DashboardPage: React.FC = () => {
                             color="#4caf50"
                             growth={stats?.growth.newPatientsThisMonth}
                         />
-                        
+
                         <StatCard
                             title="Consultas Hoje"
                             value={stats?.overview.appointmentsToday || 0}
                             icon="📅"
                             color="#2196f3"
-                            subtitle={`${stats?.overview.appointmentsThisWeek || 0} esta semana`}
+                            subtitle={`${
+                                stats?.overview.appointmentsThisWeek || 0
+                            } esta semana`}
                         />
-                        
+
                         <StatCard
                             title="Prontuários"
                             value={stats?.overview.totalMedicalRecords || 0}
@@ -133,7 +138,7 @@ const DashboardPage: React.FC = () => {
                             color="#ff9800"
                             growth={stats?.growth.medicalRecordsThisMonth}
                         />
-                        
+
                         <StatCard
                             title="Relatórios"
                             value={stats?.overview.totalReports || 0}
@@ -150,7 +155,8 @@ const DashboardPage: React.FC = () => {
                 <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                        gridTemplateColumns:
+                            "repeat(auto-fit, minmax(200px, 1fr))",
                         gap: "1rem",
                         marginBottom: "2rem",
                     }}
@@ -167,11 +173,17 @@ const DashboardPage: React.FC = () => {
                         <div style={{ color: "#666", fontSize: "0.9rem" }}>
                             Consultas Este Mês
                         </div>
-                        <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#333" }}>
+                        <div
+                            style={{
+                                fontSize: "1.5rem",
+                                fontWeight: "bold",
+                                color: "#333",
+                            }}
+                        >
                             {stats.overview.appointmentsThisMonth}
                         </div>
                     </div>
-                    
+
                     <div
                         style={{
                             background: "white",
@@ -184,7 +196,13 @@ const DashboardPage: React.FC = () => {
                         <div style={{ color: "#666", fontSize: "0.9rem" }}>
                             Prontuários Pendentes
                         </div>
-                        <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#f44336" }}>
+                        <div
+                            style={{
+                                fontSize: "1.5rem",
+                                fontWeight: "bold",
+                                color: "#f44336",
+                            }}
+                        >
                             {stats.overview.pendingMedicalRecords}
                         </div>
                     </div>
@@ -192,27 +210,13 @@ const DashboardPage: React.FC = () => {
             )}
 
             {/* Main Content Grid */}
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "2rem",
-                    marginTop: "2rem",
-                }}
-            >
-                {/* Upcoming Appointments */}
+            <div style={{ marginTop: "2rem" }}>
                 <UpcomingAppointmentsCard
                     appointments={stats?.appointments.upcoming || []}
                     loading={loading}
                 />
-
-                {/* Recent Activity */}
-                <RecentActivityCard
-                    activities={recentActivity}
-                    loading={loading}
-                />
             </div>
-            
+
             {/* Additional Info */}
             {!loading && stats && stats.monthlyActivity.length > 0 && (
                 <div
@@ -234,11 +238,12 @@ const DashboardPage: React.FC = () => {
                     >
                         Atividade dos Últimos Meses
                     </h3>
-                    
+
                     <div
                         style={{
                             display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                            gridTemplateColumns:
+                                "repeat(auto-fit, minmax(120px, 1fr))",
                             gap: "1rem",
                         }}
                     >
@@ -270,9 +275,16 @@ const DashboardPage: React.FC = () => {
                                         marginBottom: "0.25rem",
                                     }}
                                 >
-                                    {month.patients + month.appointments + month.records}
+                                    {month.patients +
+                                        month.appointments +
+                                        month.records}
                                 </div>
-                                <div style={{ fontSize: "0.7rem", color: "#999" }}>
+                                <div
+                                    style={{
+                                        fontSize: "0.7rem",
+                                        color: "#999",
+                                    }}
+                                >
                                     atividades
                                 </div>
                             </div>

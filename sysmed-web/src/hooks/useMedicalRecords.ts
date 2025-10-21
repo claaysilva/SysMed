@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import axios from "axios";
+import { apiRequest } from "../services/api";
+import { ApiErrorHandler } from "../utils/errorHandler";
 
 export interface VitalSigns {
     pressao_arterial?: string;
@@ -100,17 +101,12 @@ export const useMedicalRecords = () => {
     const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const API_BASE_URL = "http://localhost:8000/api";
-
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem("auth_token");
-        return {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        };
-    };
+    const [pagination, setPagination] = useState<{
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    } | null>(null);
 
     const fetchMedicalRecords = useCallback(
         async (filters?: {
@@ -121,34 +117,48 @@ export const useMedicalRecords = () => {
             data_inicio?: string;
             data_fim?: string;
             per_page?: number;
+            search?: string;
+            page?: number;
+            sort_by?: string;
+            sort_order?: "asc" | "desc";
         }) => {
             setLoading(true);
             setError(null);
 
             try {
-                const params = new URLSearchParams();
-                if (filters) {
-                    Object.entries(filters).forEach(([key, value]) => {
-                        if (value) params.append(key, value.toString());
-                    });
-                }
+                const activeFilters = filters
+                    ? Object.fromEntries(
+                          Object.entries(filters).filter(
+                              ([, v]) =>
+                                  v !== undefined && v !== null && v !== ""
+                          )
+                      )
+                    : {};
 
-                const response = await axios.get(
-                    `${API_BASE_URL}/medical-records?${params.toString()}`,
-                    { headers: getAuthHeaders() }
-                );
+                const response = await apiRequest.get<
+                    import("../utils/errorHandler").ApiResponse<
+                        MedicalRecord[]
+                    > & {
+                        meta?: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                    }
+                >("/medical-records", activeFilters);
 
-                if (response.data.success) {
-                    setMedicalRecords(response.data.data);
+                if (response && response.success) {
+                    setMedicalRecords(response.data || []);
+                    setPagination(response.meta || null);
                 } else {
                     throw new Error(
-                        response.data.message || "Erro ao buscar prontuários"
+                        response?.message || "Erro ao buscar prontuários"
                     );
                 }
             } catch (err: unknown) {
-                const errorMessage =
-                    (err as Error).message || "Erro ao buscar prontuários";
-                setError(errorMessage);
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                setError(friendly || "Erro ao buscar prontuários");
                 console.error("Erro ao buscar prontuários:", err);
             } finally {
                 setLoading(false);
@@ -163,22 +173,20 @@ export const useMedicalRecords = () => {
             setError(null);
 
             try {
-                const response = await axios.get(
-                    `${API_BASE_URL}/medical-records/${id}`,
-                    { headers: getAuthHeaders() }
-                );
+                const response = await apiRequest.get<
+                    import("../utils/errorHandler").ApiResponse<MedicalRecord>
+                >(`/medical-records/${id}`);
 
-                if (response.data.success) {
-                    return response.data.data;
+                if (response && response.success) {
+                    return response.data as MedicalRecord;
                 } else {
                     throw new Error(
-                        response.data.message || "Erro ao buscar prontuário"
+                        response?.message || "Erro ao buscar prontuário"
                     );
                 }
             } catch (err: unknown) {
-                const errorMessage =
-                    (err as Error).message || "Erro ao buscar prontuário";
-                setError(errorMessage);
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                setError(friendly || "Erro ao buscar prontuário");
                 console.error("Erro ao buscar prontuário:", err);
                 return null;
             } finally {
@@ -196,23 +204,20 @@ export const useMedicalRecords = () => {
             setError(null);
 
             try {
-                const response = await axios.post(
-                    `${API_BASE_URL}/medical-records`,
-                    data,
-                    { headers: getAuthHeaders() }
-                );
+                const response = await apiRequest.post<
+                    import("../utils/errorHandler").ApiResponse<MedicalRecord>
+                >(`/medical-records`, data);
 
-                if (response.data.success) {
-                    return response.data.data;
+                if (response && response.success) {
+                    return response.data as MedicalRecord;
                 } else {
                     throw new Error(
-                        response.data.message || "Erro ao criar prontuário"
+                        response?.message || "Erro ao criar prontuário"
                     );
                 }
             } catch (err: unknown) {
-                const errorMessage =
-                    (err as Error).message || "Erro ao criar prontuário";
-                setError(errorMessage);
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                setError(friendly || "Erro ao criar prontuário");
                 console.error("Erro ao criar prontuário:", err);
                 return null;
             } finally {
@@ -231,23 +236,20 @@ export const useMedicalRecords = () => {
             setError(null);
 
             try {
-                const response = await axios.put(
-                    `${API_BASE_URL}/medical-records/${id}`,
-                    data,
-                    { headers: getAuthHeaders() }
-                );
+                const response = await apiRequest.put<
+                    import("../utils/errorHandler").ApiResponse<MedicalRecord>
+                >(`/medical-records/${id}`, data);
 
-                if (response.data.success) {
-                    return response.data.data;
+                if (response && response.success) {
+                    return response.data as MedicalRecord;
                 } else {
                     throw new Error(
-                        response.data.message || "Erro ao atualizar prontuário"
+                        response?.message || "Erro ao atualizar prontuário"
                     );
                 }
             } catch (err: unknown) {
-                const errorMessage =
-                    (err as Error).message || "Erro ao atualizar prontuário";
-                setError(errorMessage);
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                setError(friendly || "Erro ao atualizar prontuário");
                 console.error("Erro ao atualizar prontuário:", err);
                 return null;
             } finally {
@@ -263,22 +265,20 @@ export const useMedicalRecords = () => {
             setError(null);
 
             try {
-                const response = await axios.delete(
-                    `${API_BASE_URL}/medical-records/${id}`,
-                    { headers: getAuthHeaders() }
-                );
+                const response = await apiRequest.delete<
+                    import("../utils/errorHandler").ApiResponse
+                >(`/medical-records/${id}`);
 
-                if (response.data.success) {
+                if (response && response.success) {
                     return true;
                 } else {
                     throw new Error(
-                        response.data.message || "Erro ao excluir prontuário"
+                        response?.message || "Erro ao excluir prontuário"
                     );
                 }
             } catch (err: unknown) {
-                const errorMessage =
-                    (err as Error).message || "Erro ao excluir prontuário";
-                setError(errorMessage);
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                setError(friendly || "Erro ao excluir prontuário");
                 console.error("Erro ao excluir prontuário:", err);
                 return false;
             } finally {
@@ -296,24 +296,27 @@ export const useMedicalRecords = () => {
             setError(null);
 
             try {
-                const response = await axios.get(
-                    `${API_BASE_URL}/patients/${patientId}/medical-records`,
-                    { headers: getAuthHeaders() }
-                );
+                const response = await apiRequest.get<
+                    import("../utils/errorHandler").ApiResponse<{
+                        patient: Patient;
+                        records: MedicalRecord[];
+                    }>
+                >(`/patients/${patientId}/medical-records`);
 
-                if (response.data.success) {
-                    return response.data.data;
+                if (response && response.success) {
+                    return response.data as {
+                        patient: Patient;
+                        records: MedicalRecord[];
+                    };
                 } else {
                     throw new Error(
-                        response.data.message ||
+                        response?.message ||
                             "Erro ao buscar prontuários do paciente"
                     );
                 }
             } catch (err: unknown) {
-                const errorMessage =
-                    (err as Error).message ||
-                    "Erro ao buscar prontuários do paciente";
-                setError(errorMessage);
+                const friendly = ApiErrorHandler.getErrorMessage(err);
+                setError(friendly || "Erro ao buscar prontuários do paciente");
                 console.error("Erro ao buscar prontuários do paciente:", err);
                 return null;
             } finally {
@@ -327,6 +330,7 @@ export const useMedicalRecords = () => {
         medicalRecords,
         loading,
         error,
+        pagination,
         fetchMedicalRecords,
         getMedicalRecord,
         createMedicalRecord,

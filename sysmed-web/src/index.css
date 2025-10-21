@@ -168,8 +168,8 @@ button {
 /* Espaçamento específico para o primeiro item quando sidebar está colapsada */
 .sidebar-nav ul li:first-child,
 .sidebar-nav .first-menu-item {
-    margin-top: 48px !important;
-    padding-top: 16px !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
 }
 
 /* Forçar espaçamento entre ícone e texto */
@@ -228,6 +228,25 @@ svg[data-slot="icon"] {
 .fc .fc-col-header-cell.fc-day-disabled {
     background-color: #f3f4f6 !important;
     color: #6b7280 !important; /* gray-500 */
+}
+
+/* FullCalendar: horários fora do expediente (non-business) devem indicar bloqueio no hover */
+.fc .fc-non-business,
+.fc .fc-non-business .fc-timegrid-slot,
+.fc .fc-non-business .fc-timegrid-slot-lane,
+.fc .fc-non-business .fc-timegrid-col-frame {
+    cursor: not-allowed !important;
+    background-color: #f3f4f6 !important; /* leve cinza para reforçar visual */
+}
+
+/* FullCalendar: esconder/suavizar linhas intermediárias de 30 minutos (slots menores)
+   Mantém a seleção em meia hora, mas evita poluição visual. */
+.fc .fc-timegrid-slot.fc-timegrid-slot-minor,
+.fc .fc-timegrid-slot-lane.fc-timegrid-slot-minor,
+.fc .fc-timegrid-slot[data-time$=":30:00"],
+.fc .fc-timegrid-slot-lane[data-time$=":30:00"] {
+    border-top-color: transparent !important;
+    background-color: transparent !important;
 }
 
 /* Remover sublinhados e bullets - mas preservar espaçamentos */
