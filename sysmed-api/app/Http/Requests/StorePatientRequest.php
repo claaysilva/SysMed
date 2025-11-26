@@ -23,6 +23,14 @@ class StorePatientRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Adiciona validação para o campo email
+        $emailRules = [
+            'nullable',
+            'email',
+            'max:255',
+            'unique:patients,email',
+        ];
+
         return [
             'nome_completo' => [
                 'required',
@@ -59,6 +67,7 @@ class StorePatientRequest extends FormRequest
                 'min:5',
                 'max:500'
             ],
+            'email' => $emailRules,
             'status' => [
                 'nullable',
                 'in:ativo,inativo'

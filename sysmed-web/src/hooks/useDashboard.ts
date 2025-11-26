@@ -61,44 +61,18 @@ export const useDashboard = () => {
             setLoading(true);
             setError(null);
 
-            const token = localStorage.getItem("authToken");
-            if (!token) {
-                throw new Error("Token não encontrado");
-            }
-
-            // Buscar estatísticas
-            const statsResponse = await fetch(
-                "http://localhost:8000/api/dashboard/statistics",
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (!statsResponse.ok) {
-                console.error(
-                    "Stats response not ok:",
-                    statsResponse.status,
-                    statsResponse.statusText
+            // Usa o apiRequest (axios) já configurado com o token
+            const { api } = await import("../services/api");
+            const response = await api.get("/dashboard/statistics");
+            if (response.data && response.data.success) {
+                setStats(response.data.data);
+            } else {
+                throw new Error(
+                    response.data?.message || "Erro ao buscar estatísticas"
                 );
-                throw new Error("Erro ao buscar estatísticas");
             }
-
-            const statsData = await statsResponse.json();
-            console.log("Stats data received:", statsData);
-
-            if (!statsData.success) {
-                console.error("Stats data success is false:", statsData);
-                throw new Error(statsData.message || "Resposta indica erro");
-            }
-
-            setStats(statsData.data);
-        } catch (err: unknown) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Erro desconhecido";
-            setError(errorMessage);
+        } catch (err: any) {
+            setError(err.message || "Erro desconhecido");
             console.error("Erro ao buscar dados do dashboard:", err);
         } finally {
             setLoading(false);

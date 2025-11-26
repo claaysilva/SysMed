@@ -8,6 +8,7 @@ use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
@@ -323,10 +324,10 @@ class NotificationController extends Controller
                 'failed' => Notification::where('status', Notification::STATUS_FAILED)->count(),
                 'cancelled' => Notification::where('status', Notification::STATUS_CANCELLED)->count(),
                 'unread' => Notification::where('read', false)->count(),
-                'by_type' => Notification::select('type', \DB::raw('count(*) as total'))
+                'by_type' => Notification::select('type', DB::raw('count(*) as total'))
                     ->groupBy('type')
                     ->get(),
-                'by_priority' => Notification::select('priority', \DB::raw('count(*) as total'))
+                'by_priority' => Notification::select('priority', DB::raw('count(*) as total'))
                     ->groupBy('priority')
                     ->get(),
                 'recent_activity' => Notification::with(['user', 'patient'])

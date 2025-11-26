@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 trait OptimizedQueries
 {
@@ -53,9 +54,10 @@ trait OptimizedQueries
 
     foreach ($relations as $relation) {
       if (is_string($relation)) {
+        $relationName = $relation;
         // Adicionar select específico para relações
-        $optimizedRelations[$relation] = function ($q) {
-          $q->select($this->getRelationColumns($relation));
+        $optimizedRelations[$relationName] = function ($q) use ($relationName) {
+          $q->select($this->getRelationColumns($relationName));
         };
       } else {
         $optimizedRelations = array_merge($optimizedRelations, $relation);
@@ -76,7 +78,7 @@ trait OptimizedQueries
     }
 
     // Log warning se ordenação por coluna não indexada
-    \Log::warning("Ordering by non-indexed column: {$column} on " . get_class($this));
+    Log::warning("Ordering by non-indexed column: {$column} on " . get_class($this));
 
     return $query->orderBy($column, $direction);
   }

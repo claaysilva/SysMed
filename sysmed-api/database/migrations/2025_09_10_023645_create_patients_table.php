@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('cpf')->unique(); // unique() garante que não haverá CPFs duplicados
             $table->string('telefone')->nullable(); // nullable() significa que o campo é opcional
             $table->text('endereco')->nullable();
+            $table->string('email')->unique()->nullable();
+            $table->string('status')->default('ativo');
             $table->timestamps(); // Cria as colunas created_at e updated_at
         });
     }

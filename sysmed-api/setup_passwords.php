@@ -9,6 +9,7 @@ $kernel->bootstrap();
 
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\NewAccessToken;
 
 echo "=== VERIFICAÇÃO E CONFIGURAÇÃO DE SENHAS ===\n";
 
@@ -42,7 +43,9 @@ try {
 
   if (Auth::attempt($credentials)) {
     $user = Auth::user();
-    $token = $user->createToken('test-token')->plainTextToken;
+    /** @var NewAccessToken $accessToken */
+    $accessToken = $user->createToken('test-token');
+    $token = $accessToken->plainTextToken;
     echo "✅ Login funcionando! Token: " . $token . "\n";
   } else {
     echo "❌ Login falhou!\n";

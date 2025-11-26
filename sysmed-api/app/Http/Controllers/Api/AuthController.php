@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\NewAccessToken;
 
 class AuthController extends Controller
 {
@@ -23,8 +24,9 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             // 3. Se a autenticação for bem-sucedida...
             $user = Auth::user();
-            // Cria um token de acesso para o usuário
-            $token = $user->createToken('authToken')->plainTextToken;
+            /** @var NewAccessToken $accessToken */
+            $accessToken = $user->createToken('authToken');
+            $token = $accessToken->plainTextToken;
 
             // Retorna uma resposta de sucesso com o token e os dados do usuário
             return response()->json([
