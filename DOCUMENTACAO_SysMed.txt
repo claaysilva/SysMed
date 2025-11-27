@@ -1,0 +1,105 @@
+# Documentação Completa do Sistema SysMed
+
+## Visão Geral
+O SysMed é um sistema de gestão médica completo, composto por backend (Laravel/PHP) e frontend (React/Vite). Ele oferece funcionalidades para clínicas, médicos e pacientes, incluindo cadastro, agendamento, prontuários, relatórios, autenticação, permissões e automação de testes.
+
+---
+
+## Funcionalidades Principais
+
+### 1. Autenticação e Usuários
+- Cadastro e login de usuários (admin, médico, etc.)
+- Controle de permissões por papel (role)
+- Autenticação via Sanctum (token)
+- Recuperação de senha (se configurado)
+
+### 2. Pacientes
+- Cadastro, edição e exclusão de pacientes
+- Listagem e busca de pacientes
+- Campos: nome completo, email, telefone, CPF, data de nascimento, endereço, status
+
+### 3. Agendamentos
+- Cadastro de consultas e procedimentos
+- Associação de paciente, médico, data e horário
+- Status do agendamento (agendada, confirmada, realizada, cancelada)
+- Visualização de agenda semanal/mensal
+
+### 4. Prontuários Médicos
+- Criação e edição de prontuários vinculados a pacientes e agendamentos
+- Campos clínicos: anamnese, exame físico, diagnóstico, CID, conduta, prescrição, exames solicitados, orientações, anexos
+- Histórico de prontuários por paciente
+- Status do prontuário (rascunho, finalizado, assinado)
+
+### 5. Relatórios
+- Geração de relatórios médicos e administrativos
+- Modelos de relatório personalizáveis
+- Exportação de relatórios
+
+### 6. Dashboard
+- Estatísticas gerais: total de pacientes, consultas do dia/semana/mês, prontuários, relatórios
+- Gráficos de crescimento e atividades mensais
+- Listagem de próximos agendamentos e relatórios recentes
+
+### 7. Notificações
+- Notificações de agendamento, lembretes e eventos importantes
+
+### 8. Usuários Médicos
+- Cadastro de médicos
+- Associação de médicos a consultas e prontuários
+
+### 9. Permissões e Segurança
+- Middleware de autenticação e autorização
+- CORS configurado para integração frontend/backend
+- Proteção de rotas sensíveis
+
+### 10. Testes Automatizados
+- Testes backend: PHPUnit (Feature e Unit)
+- Testes frontend: Cypress (E2E)
+- Banco de teste isolado (`SysMed_test`)
+
+---
+
+## Estrutura de Pastas
+
+- `sysmed-api/` (Backend Laravel)
+  - `app/` (Models, Controllers, Services, Middleware)
+  - `database/` (Migrations, Seeders, Factories)
+  - `routes/` (api.php, web.php)
+  - `tests/` (Feature, Unit)
+  - `public/` (index.php)
+  - `config/` (Configurações do sistema)
+- `sysmed-web/` (Frontend React)
+  - `src/` (Componentes, páginas, hooks, serviços)
+  - `cypress/` (Testes E2E)
+  - `public/` (index.html)
+
+---
+
+## Tecnologias Utilizadas
+- **Backend:** PHP 8+, Laravel, MySQL
+- **Frontend:** React 18+, Vite, TypeScript, TailwindCSS, Mantine UI
+- **Testes:** PHPUnit, Cypress
+- **Outros:** Axios, FullCalendar, Heroicons, Lucide, ESLint
+
+---
+
+## Fluxo de Testes e Deploy
+1. Rodar `php artisan migrate:fresh --seed --database=mysql --force` para resetar e popular o banco.
+2. Rodar `php artisan test` para testar o backend.
+3. Rodar `npx cypress run` para testar o frontend.
+4. Validar que todos os testes passaram antes de deploy.
+
+---
+
+## Observações Finais
+- O sistema está pronto para produção, com migrations limpas, seeders atualizados e testes automatizados.
+- O login padrão do admin é:
+  - **Email:** admin@sysmed.com
+  - **Senha:** senha123
+- O frontend se comunica com o backend via API REST em `http://127.0.0.1:8000/api`.
+- O backend aceita requisições de qualquer origem (CORS liberado).
+
+---
+
+## Contato e Suporte
+Para dúvidas, suporte ou contribuições, consulte o README.md ou entre em contato com o responsável pelo projeto.
