@@ -13,123 +13,137 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
 
-        // Criar usuários
-        $admin = \App\Models\User::updateOrCreate([
-            'email' => 'admin@sysmed.com'
-        ], [
-            'name' => 'Admin Sistema',
+        // Criar admin fixo
+        \App\Models\User::create([
+            'name' => 'Admin',
+            'email' => 'admin@sysmed.com',
+            'role' => 'admin',
             'password' => bcrypt('senha123'),
-            'role' => 'admin'
         ]);
 
-        $medico1 = \App\Models\User::updateOrCreate([
-            'email' => 'medico@sysmed.com'
-        ], [
-            'name' => 'Dr. João Silva',
-            'password' => bcrypt('senha123'),
-            'role' => 'medico'
-        ]);
+        // Criar 5 médicos fixos
+        $medicos = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $medicos[] = \App\Models\User::create([
+                'name' => "Médico $i",
+                'email' => "medico$i@sysmed.com",
+                'role' => 'medico',
+                'password' => bcrypt('senha123'),
+            ]);
+        }
 
-        $medico2 = \App\Models\User::updateOrCreate([
-            'email' => 'medico2@sysmed.com'
-        ], [
-            'name' => 'Dra. Maria Santos',
-            'password' => bcrypt('senha123'),
-            'role' => 'medico'
-        ]);
+        // Criar 10 pacientes comuns brasileiros (role 'user') e seus registros na tabela patients
+        $faker = \Faker\Factory::create('pt_BR');
+        $usuarios = collect();
+        $pacientes = collect();
+        for ($i = 0; $i < 10; $i++) {
+            // Gera nome que não começa com Dr. ou Dra.
+            do {
+                $nome = $faker->name();
+            } while (preg_match('/^Dr\.?\s|^Dra\.?\s/i', $nome));
+            $email = $faker->unique()->safeEmail();
+            $user = \App\Models\User::create([
+                'name' => $nome,
+                'email' => $email,
+                'role' => 'user',
+                'password' => bcrypt('senha123'),
+            ]);
+            $usuarios->push($user);
+            $paciente = \App\Models\Patient::create([
+                'nome_completo' => $nome,
+                'data_nascimento' => $faker->date('Y-m-d', '-18 years'),
+                'cpf' => $faker->unique()->numerify('###########'),
+                'telefone' => $faker->phoneNumber(),
+                'endereco' => $faker->address(),
+                'email' => $email,
+                'status' => 'ativo',
+            ]);
+            $pacientes->push($paciente);
+        }
 
-        // Criar pacientes
-        $paciente1 = \App\Models\Patient::updateOrCreate([
-            'cpf' => '12345678901'
-        ], [
-            'nome_completo' => 'Ana Clara Silva',
-            'data_nascimento' => '1990-01-01',
-            'cpf' => '12345678901',
-            'telefone' => '(11) 91234-5678',
-            'endereco' => 'Rua das Flores, 123',
-        ]);
+        // Para cada paciente, criar 2 agendamentos e 2 prontuários
+        foreach ($pacientes as $i => $paciente) {
+            // Seleciona um médico diferente para cada paciente
+            $medico = $medicos[$i % count($medicos)];
 
-        $paciente2 = \App\Models\Patient::updateOrCreate([
-            'cpf' => '98765432109'
-        ], [
-            'nome_completo' => 'Pedro Santos',
-            'data_nascimento' => '1985-05-15',
-            'cpf' => '98765432109',
-            'telefone' => '(11) 98765-4321',
-            'endereco' => 'Av. Principal, 456',
-        ]);
+            // Agendamentos
+            $agendamento1 = \App\Models\Appointment::create([
+                'patient_id' => $paciente->id,
+                'user_id' => $medico->id,
+                'data_hora_inicio' => now()->addDays($i)->setTime(9, 0),
+                'data_hora_fim' => now()->addDays($i)->setTime(9, 30),
+                'status' => 'agendado',
+                'observacoes' => 'Primeira consulta do paciente',
+            ]);
+            $agendamento2 = \App\Models\Appointment::create([
+                'patient_id' => $paciente->id,
+                'user_id' => $medico->id,
+                'data_hora_inicio' => now()->addDays($i + 1)->setTime(14, 0),
+                'data_hora_fim' => now()->addDays($i + 1)->setTime(14, 30),
+                'status' => 'confirmado',
+                'observacoes' => 'Retorno do paciente',
+            ]);
 
-        $paciente3 = \App\Models\Patient::updateOrCreate([
-            'cpf' => '11122233344'
-        ], [
-            'nome_completo' => 'Maria Oliveira',
-            'data_nascimento' => '1992-12-10',
-            'cpf' => '11122233344',
-            'telefone' => '(11) 95555-1234',
-            'endereco' => 'Rua Central, 789',
-        ]);
-
-        // Criar consultas
-        \App\Models\Appointment::updateOrCreate([
-            'patient_id' => $paciente1->id,
-            'user_id' => $medico1->id,
-            'data_hora_inicio' => now()->format('Y-m-d') . ' 09:00:00'
-        ], [
-            'data_hora_fim' => now()->format('Y-m-d') . ' 09:30:00',
-            'status' => 'agendado',
-            'observacoes' => 'Paciente em acompanhamento regular'
-        ]);
-
-        \App\Models\Appointment::updateOrCreate([
-            'patient_id' => $paciente2->id,
-            'user_id' => $medico2->id,
-            'data_hora_inicio' => now()->format('Y-m-d') . ' 14:30:00'
-        ], [
-            'data_hora_fim' => now()->format('Y-m-d') . ' 15:00:00',
-            'status' => 'confirmado',
-            'observacoes' => 'Paciente retornando para avaliação'
-        ]);
-
-        \App\Models\Appointment::updateOrCreate([
-            'patient_id' => $paciente3->id,
-            'user_id' => $medico1->id,
-            'data_hora_inicio' => now()->addDay()->format('Y-m-d') . ' 10:00:00'
-        ], [
-            'data_hora_fim' => now()->addDay()->format('Y-m-d') . ' 10:30:00',
-            'status' => 'agendado',
-            'observacoes' => 'Paciente novo no sistema'
-        ]);
-
-        // Criar prontuários médicos
-        \App\Models\MedicalRecord::updateOrCreate([
-            'patient_id' => $paciente1->id,
-            'user_id' => $medico1->id,
-            'data_consulta' => now()->format('Y-m-d'),
-        ], [
-            'horario_consulta' => '09:00:00',
-            'tipo_consulta' => 'consulta',
-            'queixa_principal' => 'Dores de cabeça eventuais',
-            'exame_fisico_geral' => 'PA: 120x80, FC: 72bpm, Normal',
-            'hipotese_diagnostica' => 'Cefaleia tensional',
-            'conduta' => 'Orientações gerais e acompanhamento',
-            'status' => 'finalizado'
-        ]);
-
-        \App\Models\MedicalRecord::updateOrCreate([
-            'patient_id' => $paciente2->id,
-            'user_id' => $medico2->id,
-            'data_consulta' => now()->format('Y-m-d'),
-        ], [
-            'horario_consulta' => '14:30:00',
-            'tipo_consulta' => 'retorno',
-            'queixa_principal' => 'Acompanhamento hipertensão',
-            'exame_fisico_geral' => 'PA: 140x90, FC: 85bpm',
-            'hipotese_diagnostica' => 'Hipertensão arterial',
-            'conduta' => 'Ajuste medicamentoso',
-            'status' => 'finalizado'
-        ]);
+            // Prontuário 1
+            \App\Models\MedicalRecord::create([
+                'patient_id' => $paciente->id,
+                'user_id' => $medico->id,
+                'appointment_id' => $agendamento1->id,
+                'data_consulta' => $agendamento1->data_hora_inicio->format('Y-m-d'),
+                'horario_consulta' => $agendamento1->data_hora_inicio->format('H:i:s'),
+                'tipo_consulta' => 'consulta',
+                'queixa_principal' => 'Dor de cabeça',
+                'historia_doenca_atual' => 'Paciente relata dor de cabeça há 3 dias.',
+                'historia_patologica_pregressa' => 'Hipertensão controlada.',
+                'historia_familiar' => 'Mãe com diabetes.',
+                'historia_social' => 'Não fuma, não bebe.',
+                'medicamentos_uso' => 'Losartana 50mg/dia.',
+                'alergias' => 'Nenhuma conhecida.',
+                'sinais_vitais' => json_encode(['PA' => '120x80', 'FC' => '72bpm']),
+                'exame_fisico_geral' => 'PA: 120x80, FC: 72bpm',
+                'exame_fisico_especifico' => 'Sem alterações neurológicas.',
+                'hipotese_diagnostica' => 'Cefaleia tensional',
+                'cid' => 'R51',
+                'conduta' => 'Repouso, hidratação e analgésico.',
+                'prescricao' => 'Dipirona 500mg se dor.',
+                'exames_solicitados' => 'Nenhum no momento.',
+                'orientacoes' => 'Retornar se piora.',
+                'retorno' => now()->addDays(15)->format('Y-m-d'),
+                'observacoes' => 'Paciente orientado quanto aos sinais de alarme.',
+                'anexos' => json_encode([]),
+                'status' => 'finalizado',
+            ]);
+            // Prontuário 2
+            \App\Models\MedicalRecord::create([
+                'patient_id' => $paciente->id,
+                'user_id' => $medico->id,
+                'appointment_id' => $agendamento2->id,
+                'data_consulta' => $agendamento2->data_hora_inicio->format('Y-m-d'),
+                'horario_consulta' => $agendamento2->data_hora_inicio->format('H:i:s'),
+                'tipo_consulta' => 'retorno',
+                'queixa_principal' => 'Acompanhamento da cefaleia',
+                'historia_doenca_atual' => 'Melhora parcial da dor após uso de analgésico.',
+                'historia_patologica_pregressa' => 'Hipertensão controlada.',
+                'historia_familiar' => 'Mãe com diabetes.',
+                'historia_social' => 'Não fuma, não bebe.',
+                'medicamentos_uso' => 'Losartana 50mg/dia, Dipirona se dor.',
+                'alergias' => 'Nenhuma conhecida.',
+                'sinais_vitais' => json_encode(['PA' => '130x85', 'FC' => '75bpm']),
+                'exame_fisico_geral' => 'PA: 130x85, FC: 75bpm',
+                'exame_fisico_especifico' => 'Sem alterações neurológicas.',
+                'hipotese_diagnostica' => 'Acompanhamento clínico',
+                'cid' => 'R51',
+                'conduta' => 'Manter acompanhamento e hidratação.',
+                'prescricao' => 'Manter Dipirona se dor.',
+                'exames_solicitados' => 'Nenhum no momento.',
+                'orientacoes' => 'Retornar em caso de piora.',
+                'retorno' => now()->addDays(30)->format('Y-m-d'),
+                'observacoes' => 'Paciente evoluindo bem.',
+                'anexos' => json_encode([]),
+                'status' => 'finalizado',
+            ]);
+        }
 
         // Executar seeder de templates de relatórios
         $this->call([

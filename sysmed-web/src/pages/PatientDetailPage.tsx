@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useMedicalRecords } from "../hooks/useMedicalRecords";
 import { formatCPF, formatPhone } from "../hooks/useFormValidation";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -70,7 +71,7 @@ const PatientDetailPage: React.FC = () => {
     const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
     const [patient, setPatient] = useState<Patient | null>(null);
-    const [entries, setEntries] = useState<RecordEntry[]>([]);
+    const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
     const [appointments, setAppointments] = useState<AppointmentUIItem[]>([]);
     const [newEntryContent, setNewEntryContent] = useState("");
     const [loading, setLoading] = useState(true);
@@ -87,6 +88,7 @@ const PatientDetailPage: React.FC = () => {
     const userRole = localStorage.getItem("userRole");
     const { showSuccess, showError } = useNotification();
 
+    const { getMedicalRecordsByPatient } = useMedicalRecords();
     const fetchPatientData = useCallback(async () => {
         try {
             setLoading(true);
@@ -116,20 +118,13 @@ const PatientDetailPage: React.FC = () => {
                 endereco: patientData?.endereco,
             });
 
-            // Buscar entradas do prontuário
-            const entriesResponse = await axios.get(
-                `http://localhost:8000/api/patients/${patientId}/record-entries`,
-                { headers }
-            );
-            const entriesPayload = entriesResponse.data as
-                | ApiResponse<RecordEntry[]>
-                | RecordEntry[];
-            const entriesList: RecordEntry[] = isApiResponse<RecordEntry[]>(
-                entriesPayload
-            )
-                ? entriesPayload.data ?? []
-                : (entriesPayload as RecordEntry[]);
-            setEntries(entriesList);
+            // Buscar prontuários completos do paciente
+            if (patientId) {
+                const prontuarios = await getMedicalRecordsByPatient(
+                    Number(patientId)
+                );
+                setMedicalRecords(prontuarios?.records || []);
+            }
 
             // Buscar consultas reais do paciente
             const apptsResp = await apiRequest.get<{
@@ -715,76 +710,6 @@ const PatientDetailPage: React.FC = () => {
                         gap: "2rem",
                     }}
                 >
-                    {/* Nova Entrada */}
-                    {(userRole === "medico" || userRole === "admin") && (
-                        <Card>
-                            <h3
-                                style={{
-                                    fontSize: "1.25rem",
-                                    fontWeight: "600",
-                                    color: "#111827",
-                                    marginBottom: "1.5rem",
-                                }}
-                            >
-                                Nova Entrada no Prontuário
-                            </h3>
-                            <div style={{ marginBottom: "1rem" }}>
-                                <textarea
-                                    value={newEntryContent}
-                                    onChange={(e) =>
-                                        setNewEntryContent(e.target.value)
-                                    }
-                                    placeholder="Digite aqui a nova entrada do prontuário..."
-                                    style={{
-                                        width: "100%",
-                                        minHeight: "120px",
-                                        padding: "0.75rem",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: "8px",
-                                        fontSize: "0.875rem",
-                                        resize: "vertical",
-                                        fontFamily: "inherit",
-                                    }}
-                                />
-                                {entryError && (
-                                    <div
-                                        style={{
-                                            color: "#dc2626",
-                                            fontSize: "0.875rem",
-                                            marginTop: "0.5rem",
-                                            padding: "0.5rem",
-                                            backgroundColor: "#fef2f2",
-                                            border: "1px solid #fecaca",
-                                            borderRadius: "4px",
-                                        }}
-                                    >
-                                        {entryError}
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                onClick={handleSaveEntry}
-                                disabled={saving}
-                                style={{
-                                    padding: "0.75rem 1.5rem",
-                                    backgroundColor: saving
-                                        ? "#9ca3af"
-                                        : "#10b981",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    fontSize: "0.875rem",
-                                    fontWeight: "500",
-                                    cursor: saving ? "not-allowed" : "pointer",
-                                    transition: "all 0.2s",
-                                }}
-                            >
-                                {saving ? "Salvando..." : "Salvar Nova Entrada"}
-                            </button>
-                        </Card>
-                    )}
-
-                    {/* Histórico do Prontuário */}
                     <Card>
                         <h3
                             style={{
@@ -794,9 +719,9 @@ const PatientDetailPage: React.FC = () => {
                                 marginBottom: "1.5rem",
                             }}
                         >
-                            Histórico do Prontuário
+                            Histórico de Prontuários
                         </h3>
-                        {entries.length === 0 ? (
+                        {medicalRecords.length === 0 ? (
                             <div
                                 style={{
                                     textAlign: "center",
@@ -804,7 +729,7 @@ const PatientDetailPage: React.FC = () => {
                                     color: "#6b7280",
                                 }}
                             >
-                                Nenhuma entrada encontrada no prontuário.
+                                Nenhum prontuário encontrado.
                             </div>
                         ) : (
                             <div
@@ -814,9 +739,9 @@ const PatientDetailPage: React.FC = () => {
                                     gap: "1rem",
                                 }}
                             >
-                                {entries.map((entry) => (
+                                {medicalRecords.map((record) => (
                                     <div
-                                        key={entry.id}
+                                        key={record.id}
                                         style={{
                                             padding: "1.5rem",
                                             border: "1px solid #e5e7eb",
@@ -843,7 +768,7 @@ const PatientDetailPage: React.FC = () => {
                                                 }}
                                             >
                                                 {new Date(
-                                                    entry.created_at
+                                                    record.data_consulta
                                                 ).toLocaleString("pt-BR")}
                                             </div>
                                             <div
@@ -853,18 +778,32 @@ const PatientDetailPage: React.FC = () => {
                                                     fontWeight: "500",
                                                 }}
                                             >
-                                                {entry.user.name}
+                                                {record.user?.name}
                                             </div>
                                         </div>
                                         <div
-                                            dangerouslySetInnerHTML={{
-                                                __html: entry.conteudo,
-                                            }}
                                             style={{
-                                                lineHeight: 1.6,
                                                 color: "#374151",
+                                                lineHeight: 1.6,
                                             }}
-                                        />
+                                        >
+                                            <b>Tipo:</b>{" "}
+                                            {record.tipo_consulta_label}
+                                            <br />
+                                            <b>Queixa principal:</b>{" "}
+                                            {record.queixa_principal}
+                                            <br />
+                                            <b>Hipótese diagnóstica:</b>{" "}
+                                            {record.hipotese_diagnostica}
+                                            <br />
+                                            <b>Conduta:</b> {record.conduta}
+                                            <br />
+                                            <b>Status:</b> {record.status_label}
+                                            <br />
+                                            <b>Observações:</b>{" "}
+                                            {record.observacoes}
+                                            <br />
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -1130,8 +1069,8 @@ const PatientDetailPage: React.FC = () => {
                                     Entradas no prontuário:
                                 </span>
                                 <div style={{ fontWeight: "600" }}>
-                                    {entries.length}{" "}
-                                    {entries.length === 1
+                                    {medicalRecords.length}{" "}
+                                    {medicalRecords.length === 1
                                         ? "entrada"
                                         : "entradas"}
                                 </div>
