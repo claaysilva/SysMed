@@ -221,7 +221,7 @@ const MainLayout: React.FC = () => {
                 </div>
 
                 {/* Menu de Navegação */}
-                <nav className="flex-1 py-4 px-2">
+                <nav className="flex-1 py-4 px-2 flex flex-col justify-center">
                     <div className="space-y-1">
                         {menuItems.map((item) => {
                             const IconComponent = item.icon;
