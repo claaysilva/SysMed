@@ -141,7 +141,7 @@ const SidebarSimple: React.FC<SidebarSimpleProps> = ({
                 </div>
 
                 {/* Menu Items */}
-                <nav className="flex-1 sidebar-nav px-4 pb-4 pt-0">
+                <nav className="flex-1 sidebar-nav px-4 pb-4 pt-0 flex flex-col justify-center">
                     <ul className="list-none" style={{ margin: 0, padding: 0 }}>
                         {/* Removido botão de abrir/fechar; comportamento agora é por hover */}
                         {/* Itens do menu principal */}
